@@ -72,8 +72,10 @@ Log: `/var/log/devops-course-install.log` (or `$TMPDIR` if `/var/log` is not wri
   differently and the mappings in the script are checked against the real releases —
   gitleaks calls amd64 `x64`, Trivy calls it `64bit` and arm64 `ARM64`. Do not "tidy" those
   into one variable.
-- **Per-tool failures are non-fatal.** One dead upstream URL is reported at the end rather
-  than stopping everything after it.
+- **Nothing is fatal except a bad argument.** Every step runs inside a tolerant wrapper and
+  every network fetch retries three times with backoff. A dead upstream URL is reported in the
+  summary rather than stopping the run — verified by deliberately pointing Trivy at a
+  non-existent version and confirming Gitleaks and Syft still installed.
 - **`sudo` is not required to exist.** Falls back to `runuser`, or runs directly if you are
   already the target user.
 - **Membership of the `docker` group is equivalent to root on the host.** Fine on a lab

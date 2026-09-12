@@ -42,11 +42,41 @@ hdr()  { say ""; say "${BLD}$*${RST}"; }
 run() {
   if (( DRY )); then say "    ${YLW}[dry-run]${RST} $*"; return 0; fi
   echo "+ $*" >>"$LOG"
-  "$@" >>"$LOG" 2>&1
+  if ! "$@" >>"$LOG" 2>&1; then
+    err "command failed: $* (see $LOG)"
+    return 1
+  fi
+}
+
+# Network operations fail transiently, especially with 20 delegates pulling at
+# once. Retry a few times before giving up.
+retry() {
+  local n=0 max=3
+  until "$@"; do
+    n=$((n+1))
+    (( n >= max )) && return 1
+    warn "retry ${n}/${max}: $1 ..."
+    sleep $(( n * 3 ))
+  done
+  return 0
+}
+
+# Run one step, tolerating failure. `set +e` means a failed command inside the
+# step does not abort the step, and a failed step does not abort the run: one
+# dead upstream must not stop a delegate installing everything else.
+step() {
+  local fn="$1" label="${1#step_}"
+  set +e
+  "$fn"
+  local rc=$?
+  set -e
+  if (( rc != 0 )); then
+    err "${label}: did not complete cleanly (continuing)"
+    FAILED+=("$label")
+  fi
 }
 
 die() { err "$*"; say "Full log: $LOG"; exit 1; }
-trap 'err "unexpected failure on line $LINENO — see $LOG"' ERR
 
 # tarball_install <label> <url> <member> [version]
 # Downloads a .tar.gz, extracts one member, installs it to /usr/local/bin.
@@ -61,7 +91,7 @@ tarball_install() {
     ok "${label} ${ver} installed"; return 0
   fi
   {
-    curl -fsSLo "$tmp" "$url" \
+    retry curl -fsSLo "$tmp" "$url" \
       && tar -xzf "$tmp" -C /tmp "$member" \
       && install -o root -g root -m 0755 "/tmp/${member}" "/usr/local/bin/${label}"
   } >>"$LOG" 2>&1 || {
@@ -236,10 +266,13 @@ step_k8s() {
   else
     local ver
     if (( DRY )); then ver="v1.31.x"; else ver="$(curl -fsSL https://dl.k8s.io/release/stable.txt)"; fi
-    run curl -fsSLo /tmp/kubectl "https://dl.k8s.io/release/${ver}/bin/linux/${ARCH_DEB}/kubectl"
-    run install -o root -g root -m 0755 /tmp/kubectl /usr/local/bin/kubectl
-    run rm -f /tmp/kubectl
-    ok "kubectl ${ver} installed"; INSTALLED+=("kubectl")
+    if retry curl -fsSLo /tmp/kubectl "https://dl.k8s.io/release/${ver}/bin/linux/${ARCH_DEB}/kubectl" \
+       && install -o root -g root -m 0755 /tmp/kubectl /usr/local/bin/kubectl; then
+      rm -f /tmp/kubectl
+      ok "kubectl ${ver} installed"; INSTALLED+=("kubectl")
+    else
+      rm -f /tmp/kubectl; err "kubectl: install failed (non-fatal)"; FAILED+=("kubectl")
+    fi
   fi
 
   if have k3d; then ok "k3d $(k3d version 2>/dev/null | head -1 | awk '{print $3}') already installed"
@@ -528,18 +561,11 @@ main() {
     verify && { hdr "ALL CHECKS PASSED"; exit 0; } || { hdr "${RED}SOME CHECKS FAILED${RST}"; exit 1; }
   fi
 
-  step_base
-  step_docker
-  step_sysctl
-  step_gh
-  step_k8s
-  step_iac
-  step_security
-  step_hosts
-  step_git_config
-  step_workspace
-  step_helmrepos
-  step_prepull
+  for fn in step_base step_docker step_sysctl step_gh step_k8s step_iac \
+            step_security step_hosts step_git_config step_workspace \
+            step_helmrepos step_prepull; do
+    step "$fn"
+  done
 
   if (( DRY )); then hdr "Dry run complete — nothing was changed"; exit 0; fi
 
