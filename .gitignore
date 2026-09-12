@@ -1,0 +1,33 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.coverage
+coverage.xml
+
+# Secrets — never commit
+.env
+*.pem
+*.key
+**/pulse-db-secret.yaml
+ansible/.vault_pass
+
+# Terraform
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.*
+terraform/tfplan
+
+# OS / editors
+.DS_Store
+.vscode/
+.idea/
+*.swp
+
+# Built decks — regenerate with:  cd _build && python build.py
+slides/*.pptx
+
+# Deck build scratch
+_build/.qa*/
+_build/assets/*.png
