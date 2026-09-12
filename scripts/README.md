@@ -20,23 +20,38 @@ sudo ./install-ubuntu24.sh
 | `--skip prepull` | Skip the image pre-pull (slow connections) |
 | `--help` | Usage |
 
-Components: `base` · `docker` · `sysctl` · `k8s` · `iac` · `security` · `gitcfg` · `prepull`
+Components: `base` · `docker` · `sysctl` · `gh` · `k8s` · `iac` · `security` · `hosts` ·
+`gitcfg` · `workspace` · `helmrepos` · `prepull`
 
 ### What it installs
 
 | Group | Tools |
 |---|---|
-| base | git, curl, wget, jq, gnupg, tree, htop, dnsutils, build-essential, python3 + venv + pip |
+| base | git, curl, wget, jq, gnupg, tree, htop, openssl, **ss (iproute2), lsof, ping, nc, dig**, envsubst, build-essential, python3 + venv + pip |
 | docker | Docker Engine, CLI, containerd, buildx, **compose v2 plugin**; adds you to the `docker` group |
 | sysctl | Raises `fs.inotify` limits — k3s fails in confusing ways without this |
+| gh | GitHub CLI — Lab 04 uses `gh run watch`, and it makes the Lab 03 auth far easier |
 | k8s | kubectl (latest stable), k3d, Helm, kubeseal |
 | iac | Terraform (or OpenTofu), Ansible + ansible-lint, Python Docker SDK |
 | security | Trivy, Gitleaks, Syft, pre-commit |
+| hosts | The seven Ingress hostnames the labs route on (`paytrack.localhost`, `grafana.localhost`, `bg.`/`canary.`/`weighted.`/`prod.`/`staging.`) → 127.0.0.1, in a marked block with a backup |
 | gitcfg | `init.defaultBranch=main`, `pull.rebase=false`, a `git lg` alias |
+| workspace | Creates `~/devops-course/` and clones the course material into it |
+| helmrepos | Pre-adds and indexes prometheus-community + sealed-secrets, so day 6 does not wait on a repo sync |
 | prepull | python:3.12-slim, postgres:16-alpine, nginx:1.27-alpine, busybox, curl, alpine, the pinned k3s image |
 
 Versions are **pinned at the top of the script** so a classroom is reproducible. `kubectl`
 tracks latest stable deliberately — it must match whatever cluster a delegate later connects to.
+
+### What it does NOT do
+
+Two things are deliberately left to the delegate, because they are personal credentials:
+
+- **`git config --global user.name` / `user.email`** — stamped into every commit.
+- **`gh auth login`** — GitHub authentication for Lab 03 onwards.
+
+Everything else, including the `/etc/hosts` entries and the `~/devops-course` workspace, is
+set up for you.
 
 ### After it runs
 
@@ -46,7 +61,8 @@ tracks latest stable deliberately — it must match whatever cluster a delegate 
    git config --global user.name  "Your Name"
    git config --global user.email "you@example.com"
    ```
-3. Re-check any time: `sudo ./install-ubuntu24.sh --verify`
+3. Authenticate to GitHub (needed from Lab 03): `gh auth login`
+4. Re-check any time: `sudo ./install-ubuntu24.sh --verify`
 
 Log: `/var/log/devops-course-install.log` (or `$TMPDIR` if `/var/log` is not writable).
 

@@ -23,6 +23,7 @@ GITLEAKS_VERSION="8.21.2"
 TRIVY_VERSION="0.74.0"
 SYFT_VERSION="1.14.0"
 K3S_IMAGE="rancher/k3s:v1.31.2-k3s1"      # matches k8s/k3d-cluster.yaml
+COURSE_REPO="https://github.com/kumbulanit/devops_professional.git"
 
 LOG="/var/log/devops-course-install.log"
 [[ -w /var/log ]] || LOG="${TMPDIR:-/tmp}/devops-course-install.log"
@@ -157,9 +158,12 @@ step_base() {
   run apt-get update -qq
   run env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq --no-install-recommends \
       ca-certificates curl wget gnupg lsb-release apt-transport-https software-properties-common \
-      git jq unzip tree htop net-tools dnsutils \
+      git jq unzip tree htop \
+      iproute2 net-tools dnsutils lsof iputils-ping netcat-openbsd \
+      gettext-base procps ca-certificates openssl \
       build-essential python3 python3-pip python3-venv
-  ok "base packages present"
+  # ss (iproute2) is used in Lab 08, lsof in the port-conflict troubleshooting.
+  ok "base packages present (incl. ss, lsof, ping, nc, dig)"
   INSTALLED+=("base")
 }
 
@@ -198,6 +202,30 @@ step_docker() {
     ok "'$TARGET_USER' already in the docker group"
   fi
   run systemctl enable --now docker || true
+}
+
+step_gh() {
+  want gh || return 0
+  hdr "GitHub CLI"
+  if have gh; then ok "gh $(gh --version 2>/dev/null | head -1 | awk '{print $3}') already installed"; return 0; fi
+  if [[ ! -f /usr/share/keyrings/githubcli-archive-keyring.gpg ]]; then
+    if (( DRY )); then say "    ${YLW}[dry-run]${RST} fetch github-cli keyring"; else
+      curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+        -o /usr/share/keyrings/githubcli-archive-keyring.gpg
+      chmod a+r /usr/share/keyrings/githubcli-archive-keyring.gpg
+    fi
+  fi
+  if (( ! DRY )); then
+    echo "deb [arch=${ARCH_DEB} signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
+      > /etc/apt/sources.list.d/github-cli.list
+  fi
+  run apt-get update -qq
+  if run env DEBIAN_FRONTEND=noninteractive apt-get install -y -qq gh; then
+    ok "gh installed — delegates authenticate with 'gh auth login'"
+    INSTALLED+=("gh")
+  else
+    err "gh install failed (non-fatal)"; FAILED+=("gh")
+  fi
 }
 
 step_k8s() {
@@ -255,6 +283,67 @@ EOF
   fi
   ok "inotify limits raised (watches=524288, instances=512)"
   INSTALLED+=("sysctl")
+}
+
+step_hosts() {
+  want hosts || return 0
+  hdr "Local DNS for the lab hostnames"
+  # Ingress routes on the HTTP Host header, so these must resolve to loopback.
+  local marker="# >>> devops-course <<<"
+  if grep -qF "$marker" /etc/hosts 2>/dev/null; then
+    ok "/etc/hosts entries already present"
+    return 0
+  fi
+  if (( DRY )); then
+    say "    ${YLW}[dry-run]${RST} append 7 lab hostnames to /etc/hosts"
+    ok "/etc/hosts entries added"; return 0
+  fi
+  cp /etc/hosts "/etc/hosts.bak.$(date +%Y%m%d%H%M%S)" 2>/dev/null || true
+  cat >> /etc/hosts <<'EOF'
+
+# >>> devops-course <<<
+127.0.0.1  paytrack.localhost api.paytrack.localhost
+127.0.0.1  grafana.localhost
+127.0.0.1  bg.paytrack.localhost canary.paytrack.localhost weighted.paytrack.localhost
+127.0.0.1  prod.paytrack.localhost staging.paytrack.localhost
+# <<< devops-course >>>
+EOF
+  ok "/etc/hosts entries added (backup written alongside)"
+  INSTALLED+=("hosts")
+}
+
+step_workspace() {
+  want workspace || return 0
+  hdr "Course workspace"
+  local ws="${TARGET_HOME}/devops-course"
+  if (( DRY )); then
+    say "    ${YLW}[dry-run]${RST} mkdir -p $ws and clone the course material"
+    ok "workspace ready"; return 0
+  fi
+  mkdir -p "$ws"
+  chown -R "$TARGET_USER":"$TARGET_USER" "$ws" 2>/dev/null || true
+  ok "workspace: $ws"
+  if [[ -d "$ws/course-material/.git" ]]; then
+    ok "course material already cloned"
+  else
+    if as_user git clone -q "$COURSE_REPO" "$ws/course-material" >>"$LOG" 2>&1; then
+      ok "course material cloned into $ws/course-material"
+      INSTALLED+=("course-material")
+    else
+      warn "could not clone $COURSE_REPO — clone it by hand, or ask your trainer for a zip"
+    fi
+  fi
+}
+
+step_helmrepos() {
+  want helmrepos || return 0
+  hdr "Helm repositories (day 6 pre-warm)"
+  if ! have helm; then warn "helm not installed — skipping"; return 0; fi
+  if (( DRY )); then say "    ${YLW}[dry-run]${RST} helm repo add prometheus-community / sealed-secrets"; return 0; fi
+  as_user helm repo add prometheus-community https://prometheus-community.github.io/helm-charts >>"$LOG" 2>&1 || true
+  as_user helm repo add sealed-secrets https://bitnami-labs.github.io/sealed-secrets >>"$LOG" 2>&1 || true
+  as_user helm repo update >>"$LOG" 2>&1 || true
+  ok "helm repos added and indexed"
 }
 
 step_iac() {
@@ -408,8 +497,16 @@ verify() {
   check gitleaks  gitleaks version
   check syft      syft version
   check python    python3 --version
+  check gh        gh --version
+  check lsof      lsof -v
+  check ss        ss -V
 
   say ""
+  if grep -qF "# >>> devops-course <<<" /etc/hosts 2>/dev/null; then
+    ok "/etc/hosts lab entries present"
+  else
+    warn "/etc/hosts lab entries missing — Ingress hostnames will not resolve (run without --verify)"
+  fi
   if docker info >/dev/null 2>&1; then
     ok "docker daemon reachable by $(whoami)"
   elif as_user docker info >/dev/null 2>&1; then
@@ -434,10 +531,14 @@ main() {
   step_base
   step_docker
   step_sysctl
+  step_gh
   step_k8s
   step_iac
   step_security
+  step_hosts
   step_git_config
+  step_workspace
+  step_helmrepos
   step_prepull
 
   if (( DRY )); then hdr "Dry run complete — nothing was changed"; exit 0; fi

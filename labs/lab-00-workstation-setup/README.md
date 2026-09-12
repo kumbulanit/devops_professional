@@ -39,10 +39,16 @@ If you just want a working machine, run the installer and skip to Step 7:
 git clone https://github.com/<your-org>/devops-professional.git ~/devops-course/course-material
 sudo ~/devops-course/course-material/scripts/install-ubuntu24.sh
 ```
-**What this does:** installs and verifies every tool in this lab — base packages, Docker +
-Compose, kubectl, k3d, Helm, kubeseal, Terraform, Ansible, Trivy, Gitleaks, Syft, plus the
-kernel limits k3s needs and the container images the week uses. It is **idempotent**: re-run
-it any time and it only does what is missing.
+**What this does:** installs and verifies **everything the six days need** — base packages
+(including `ss`, `lsof`, `dig` and `nc`, which the labs use), Docker + Compose, the GitHub CLI,
+kubectl, k3d, Helm, kubeseal, Terraform, Ansible, Trivy, Gitleaks, Syft and pre-commit. It also
+does the *setup* the labs assume: the kernel limits k3s needs, the seven `/etc/hosts` entries
+Ingress routes on, your `~/devops-course` workspace with the course material cloned into it,
+the Helm repositories day 6 uses, and a pre-pull of the week's container images.
+It is **idempotent**: re-run it any time and it only does what is missing.
+
+**Two things it deliberately leaves to you**, because they are your credentials:
+`git config --global user.name`/`user.email`, and `gh auth login`.
 
 | Flag | Does |
 |---|---|
