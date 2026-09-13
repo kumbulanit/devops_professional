@@ -59,13 +59,21 @@ managing them.
 ## Step 2 — Bring in the PayTrack API application
 
 ```bash
-git clone https://github.com/<your-org>/devops-professional.git ~/devops-course/course-material
+git clone https://github.com/kumbulanit/devops_professional.git ~/devops-course/course-material
 ```
 **What this does:** clones the course material repository — the one containing these lab
 guides and the PayTrack API source. `git clone` creates the directory, downloads the full
 history, checks out the default branch and configures the remote `origin` automatically.
-**Your trainer will give you the actual URL**; if you were given a zip instead, unzip it to
-`~/devops-course/course-material` and skip to the copy below.
+
+> 🔑 **Two different repositories are in play this week — do not mix them up.**
+>
+> | | Repository | You |
+> |---|---|---|
+> | **Course material** | `kumbulanit/devops_professional` | **read only.** A source of files; you never push to it |
+> | **Your project** | `paytrack-api`, under **your own** GitHub account (Lab 03) | own it, push to it, and it carries your work for six days |
+>
+> That is why the course URL below is concrete and every `paytrack-api` URL says
+> `<your-username>` — substitute your own GitHub username there.
 
 ```bash
 cp -r ~/devops-course/course-material/app ~/devops-course/paytrack-api/app
@@ -464,8 +472,12 @@ version control.
 <details>
 <summary><strong>Instructor notes</strong></summary>
 
-- **Publish the course-material repo before day 1** and put the clone URL on the slide. If
-  network access is restricted, hand out a zip and adapt step 2.
+- **The course material is published at `github.com/kumbulanit/devops_professional`** and the
+  labs clone it by that exact URL. If network access is restricted in the room, hand out a zip
+  and adapt step 2 (unzip to `~/devops-course/course-material`).
+- **Say the two-repo distinction out loud** before they start: the course repo is read-only to
+  them; `paytrack-api` under their own account is the one they own. Delegates who miss this
+  spend Lab 03 trying to push to somebody else's repository.
 - **The three things that go wrong:**
   1. `pip install` fails with *externally-managed-environment* — they skipped the venv.
      Point them back to `python3 -m venv .venv && source .venv/bin/activate`.

@@ -27,7 +27,7 @@ collaborators, branch protection on public repositories.
 🔁 **RECOVER — if Lab 02 is incomplete**
 ```bash
 cd ~/devops-course && rm -rf paytrack-api
-git clone https://github.com/<your-org>/devops-professional.git course-material 2>/dev/null || true
+git clone https://github.com/kumbulanit/devops_professional.git course-material 2>/dev/null || true
 mkdir -p paytrack-api && cp -r course-material/app paytrack-api/app && cd paytrack-api
 git init && git add . && git commit -m "feat: add PayTrack API service"
 ```
@@ -51,6 +51,11 @@ keep every mechanic.
 ---
 
 ## Part 1 — The Maintainer creates the remote (5 min)
+
+> ⚠️ **This is YOUR repository, not the course one.** Everywhere below that says
+> `<your-username>` or `<maintainer>`, substitute the relevant GitHub account —
+> the maintainer's account for the shared team repo, yours for your own clones.
+> `kumbulanit/devops_professional` is the *course material* and is read-only to you.
 
 ### Step 1.1 — Create an empty repository on GitHub
 
@@ -585,7 +590,7 @@ else's. This is the repository every remaining lab pushes to.
 - **Timing:** Part 1–2 in 10 min, Part 3 in 15, Part 4 in 10, Part 5 in 5, Part 6 in 5.
   Parts 4 and 6 are the point of the lab — protect their time by driving Parts 1–2 from the
   front.
-- **Part 6 needs the projector.** Have `https://github.com/<org>/paytrack-api/network` open and
+- **Part 6 needs the projector.** Have `https://github.com/<maintainer>/paytrack-api/network` open and
   refresh it as delegates push. The moment the room sees their own branch on a shared picture
   is the moment branching stops being abstract — it is the highest-value five minutes of
   day 2.

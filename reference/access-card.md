@@ -44,9 +44,9 @@ routine.
 | `http://localhost:8080/metrics` | Prometheus metrics | 02 | " |
 | `http://localhost:8080/` | Same, but **via nginx → API ×2 → Postgres** | 07 | `docker compose up -d` |
 | `http://localhost:8081` | **Jenkins** | 05 | `docker start jenkins` |
-| `https://github.com/<you>/paytrack-api` | Your repository | 03 | — |
-| `https://github.com/<you>/paytrack-api/actions` | Pipeline runs | 04 | — |
-| `https://github.com/<you>/paytrack-api/network` | **Team branch graph** ← see Lab 03 Part 6 | 03 | public repo |
+| `https://github.com/<your-username>/paytrack-api` | Your repository | 03 | — |
+| `https://github.com/<your-username>/paytrack-api/actions` | Pipeline runs | 04 | — |
+| `https://github.com/<your-username>/paytrack-api/network` | **Team branch graph** ← see Lab 03 Part 6 | 03 | public repo |
 
 ### Day 4–6 (Kubernetes)
 

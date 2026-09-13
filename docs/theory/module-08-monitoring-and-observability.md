@@ -341,7 +341,7 @@ groups:
         labels: { severity: page }
         annotations:
           summary: "PayTrack API is burning its error budget 14.4× too fast"
-          runbook: "https://github.com/org/runbooks/blob/main/paytrack-api-errors.md"
+          runbook: "https://github.com/<your-username>/paytrack-api/blob/main/docs/runbooks/high-error-rate.md"
 ```
 
 ---

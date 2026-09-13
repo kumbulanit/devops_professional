@@ -161,7 +161,7 @@ ARG BUILD_DATE
 
 LABEL org.opencontainers.image.title="paytrack-api" \
       org.opencontainers.image.description="Health-check recording service" \
-      org.opencontainers.image.source="https://github.com/OWNER/paytrack-api" \
+      org.opencontainers.image.source="https://github.com/<your-username>/paytrack-api" \
       org.opencontainers.image.revision="${GIT_SHA}" \
       org.opencontainers.image.version="${APP_VERSION}" \
       org.opencontainers.image.created="${BUILD_DATE}" \

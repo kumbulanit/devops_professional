@@ -670,7 +670,7 @@ spec:
           annotations:
             summary: "PayTrack API is burning its error budget 14.4x too fast"
             description: "Error ratio is {{ $value | humanizePercentage }} over 1h AND 5m."
-            runbook_url: "https://github.com/OWNER/paytrack-api/blob/main/docs/runbooks/high-error-rate.md"
+            runbook_url: "https://github.com/<your-username>/paytrack-api/blob/main/docs/runbooks/high-error-rate.md"
 
         # SLOW BURN: 6x. Consumes 5% of the budget in six hours. Ticket, not a page.
         - alert: PayTrackAPIErrorBudgetSlowBurn
@@ -688,7 +688,7 @@ spec:
           labels: { severity: warning, team: platform }
           annotations:
             summary: "PayTrack API error budget burning 6x too fast"
-            runbook_url: "https://github.com/OWNER/paytrack-api/blob/main/docs/runbooks/high-error-rate.md"
+            runbook_url: "https://github.com/<your-username>/paytrack-api/blob/main/docs/runbooks/high-error-rate.md"
 
     # ── Symptom-based alerts ───────────────────────────────────────────────
     - name: paytrack-api.symptoms
@@ -732,7 +732,7 @@ spec:
               Authorisations are being declined far above the normal band. Check the
               upstream scheme link and any fraud rule deployed in the last hour.
               This can be RED-green: pods healthy, latency fine, customers refused.
-            runbook_url: "https://github.com/OWNER/paytrack-api/blob/main/docs/runbooks/decline-rate.md"
+            runbook_url: "https://github.com/<your-username>/paytrack-api/blob/main/docs/runbooks/decline-rate.md"
 
         - alert: PayTrackAuthorisationsStopped
           expr: sum(rate(paytrack_authorisations_total[10m])) == 0

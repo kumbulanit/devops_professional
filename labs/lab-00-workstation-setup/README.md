@@ -36,7 +36,7 @@ environment is correct — and that you can re-run at the start of any day.
 If you just want a working machine, run the installer and skip to Step 7:
 
 ```bash
-git clone https://github.com/<your-org>/devops-professional.git ~/devops-course/course-material
+git clone https://github.com/kumbulanit/devops_professional.git ~/devops-course/course-material
 sudo ~/devops-course/course-material/scripts/install-ubuntu24.sh
 ```
 **What this does:** installs and verifies **everything the six days need** — base packages

@@ -53,7 +53,7 @@ automated build, running both in GitHub Actions and in a local Jenkins — and a
 seen its own collective branch history drawn in one picture.
 
 > **Projector note for Lab 03 Part 6.** Keep
-> `https://github.com/<org>/paytrack-api/network` open on the shared screen and refresh it as
+> `https://github.com/<maintainer>/paytrack-api/network` open on the shared screen and refresh it as
 > delegates push. Five minutes, no setup, and it is the moment branching stops being
 > abstract for most of the room.
 

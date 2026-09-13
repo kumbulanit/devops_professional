@@ -347,7 +347,7 @@ Merge the PR.
 
 1. **Add a status badge.** Put this at the top of your `README.md` — a visible red/green
    signal is one of the eleven CI rules from Module 2 §2.7:
-   `![CI](https://github.com/<user>/paytrack-api/actions/workflows/ci.yml/badge.svg)`
+   `![CI](https://github.com/<your-username>/paytrack-api/actions/workflows/ci.yml/badge.svg)`
 2. **Make `black` blocking.** Run `black --line-length 100 app/src app/tests`, commit the
    result, then remove `continue-on-error: true`. Formatting arguments now happen once, in
    a tool, instead of in every review.

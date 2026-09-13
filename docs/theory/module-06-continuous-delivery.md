@@ -249,7 +249,7 @@ a deleted package does not break your builds.
 Add OCI labels at build time so any running image can be traced back to its source:
 
 ```dockerfile
-LABEL org.opencontainers.image.source="https://github.com/org/paytrack-api" \
+LABEL org.opencontainers.image.source="https://github.com/<your-username>/paytrack-api" \
       org.opencontainers.image.revision="$GIT_SHA" \
       org.opencontainers.image.version="$VERSION"
 ```
