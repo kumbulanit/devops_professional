@@ -56,10 +56,10 @@ def calms(s):
 def lifecycle(s):
     stages = [('PLAN', TEAL), ('CODE', TEAL), ('BUILD', LTBLUE), ('TEST', LTBLUE),
               ('RELEASE', ORANGE), ('DEPLOY', ORANGE), ('OPERATE', GREEN), ('MONITOR', GREEN)]
-    w = 1.30
+    w = (CW - 0.30 - 0.22) / 8
     x = M + 0.15
     for i, (name, col) in enumerate(stages):
-        chev(s, x, 2.35, w + 0.22, 0.84, name, col, pt=10.5)
+        chev(s, x, 2.35, w + 0.22, 0.84, name, col, pt=9)
         x += w
     label(s, M, 3.42, CW, 0.3, '◄────────────────────  continuous feedback  ────────────────────►',
           11, True, GREY, align='c')
@@ -159,7 +159,7 @@ def git_areas(s):
              ('INDEX / STAGING', 'the proposed next commit', LTBLUE),
              ('LOCAL REPOSITORY', 'committed history (.git)', GREEN),
              ('REMOTE', 'origin, on GitHub', PLUM)]
-    w = 2.62
+    w = 2.28
     gap = (CW - 4 * w) / 3
     x = M
     for n, sub, col in names:
@@ -193,19 +193,19 @@ def git_areas(s):
 
 
 def branching_compare(s):
-    cols = [('TRUNK-BASED', 'Hours', ['Everyone commits to main', 'Branches live < 1 day',
-                                      'Feature flags hide WIP', 'Highest DORA correlation'], GREEN),
-            ('GITHUB FLOW', 'Days', ['One branch per change', 'PR → review → squash merge',
-                                     'main is always deployable', 'What this course uses'], TEAL),
-            ('GITFLOW', 'Weeks', ['develop + release + hotfix', 'Heavy, many long branches',
-                                  'Merge pain is routine', 'Only for versioned releases'], ORANGE)]
+    cols = [('TRUNK-BASED', 'hours', ['Everyone adds small changes to main', 'Branches last less than a day',
+                                      'Unfinished work hidden behind a switch', 'Used by the fastest, safest teams'], GREEN),
+            ('GITHUB FLOW', 'days', ['One short branch per change', 'Change → review → merge',
+                                     'main is always ready to release', 'What this course uses'], TEAL),
+            ('GITFLOW', 'weeks', ['Several long-lived branches', 'Lots of branches to manage',
+                                  'Combining work is often painful', 'Suits scheduled, numbered releases'], ORANGE)]
     w = (CW - 0.5) / 3
     x = M
     for name, life, pts, col in cols:
         box(s, x, 1.95, w, 3.35, fill=PALE['grey'], line_col=col, line_w=1.0)
         box(s, x, 1.95, w, 0.46, fill=col)
         label(s, x + 0.1, 2.02, w - 0.2, 0.32, name, 12.5, True, WHITE, align='c')
-        label(s, x + 0.1, 2.52, w - 0.2, 0.3, f'branch lifetime: {life}', 10.5, True, col, align='c')
+        label(s, x + 0.1, 2.52, w - 0.2, 0.3, f'a branch lives for {life}', 10.5, True, col, align='c')
         y = 2.95
         for p in pts:
             box(s, x + 0.18, y + 0.07, 0.10, 0.10, fill=col)
@@ -214,16 +214,16 @@ def branching_compare(s):
         x += w + 0.25
     box(s, M, 5.50, CW, 1.15, fill=PALE['blue'], line_col=TEAL)
     label(s, M + 0.22, 5.60, CW - 0.44, 0.95,
-          'The DORA research is consistent: fewer, shorter-lived branches correlate with higher performance. '
-          'The mechanism is batch size — a branch that lives three weeks is three weeks of unintegrated, '
-          'untested divergence, and its merge is the riskiest event of the sprint.', 12, False, NAVY, line=1.12)
+          'The research is clear: teams whose branches are few and short-lived deliver faster and break things less. '
+          'The reason is size — a branch that lives three weeks is three weeks of changes nobody has combined or '
+          'tested together, and combining it is the riskiest moment of the month.', 12, False, NAVY, line=1.12)
 
 
 def ci_pipeline(s):
-    stages = [('COMMIT', '< 5 min', ['lint', 'unit tests', 'SAST + secrets', 'BUILD IMAGE ONCE'], TEAL),
-              ('ACCEPTANCE', '< 20 min', ['integration', 'contract tests', 'image scan', 'SBOM'], LTBLUE),
-              ('STAGING', 'prod-like', ['smoke tests', 'performance', 'DAST'], ORANGE),
-              ('PRODUCTION', 'gated', ['rolling / canary', 'smoke test', 'watch SLOs'], GREEN)]
+    stages = [('1 · QUICK CHECKS', 'under 5 minutes', ['check the style', 'fast tests', 'look for secrets', 'BUILD IT ONCE'], TEAL),
+              ('2 · MORE TESTS', 'under 20 minutes', ['tests with a database', 'scan for known flaws', 'list what is inside'], LTBLUE),
+              ('3 · REHEARSAL', 'a copy of live', ['"does it start?" test', 'speed test', 'try to break in'], ORANGE),
+              ('4 · GO LIVE', 'after approval', ['release gradually', 'check it started', 'watch for problems'], GREEN)]
     w = (CW - 3 * 0.42) / 4
     x = M
     for i, (name, sub, items, col) in enumerate(stages):
@@ -240,12 +240,12 @@ def ci_pipeline(s):
         x += w + 0.42
     box(s, M, 4.95, CW, 0.62, fill=NAVY)
     label(s, M + 0.2, 5.04, CW - 0.4, 0.44,
-          'THE SAME IMAGE DIGEST FLOWS ALL THE WAY THROUGH   ·   sha256:9f3e2a…   ·   never rebuilt, only re-tagged',
+          'THE SAME BUILD GOES ALL THE WAY THROUGH   ·   built once   ·   never rebuilt along the way',
           12, True, WHITE, align='c')
     box(s, M, 5.78, CW, 0.88, fill=PALE['gold'], line_col=GOLD)
     label(s, M + 0.22, 5.87, CW - 0.44, 0.7,
-          'Rebuilding per environment invalidates every earlier test: you tested one binary and shipped another. '
-          'In a regulated change record, "what exactly was tested?" must have one answer — a digest.',
+          'If you rebuild for each step, you tested one thing and released another. In a bank, "what exactly was '
+          'tested?" must have one clear answer: this build, identified by its unique ID.',
           12, False, NAVY, line=1.1)
 
 
@@ -285,7 +285,7 @@ def vm_vs_container(s):
 
 
 def image_layers(s):
-    label(s, M, 1.85, 5.6, 0.3, 'NAIVE BUILD  ~1.1 GB', 12, True, RED)
+    label(s, M, 1.85, 5.6, 0.3, 'NAIVE BUILD  ~1.2 GB', 12, True, RED)
     lay = [('CMD python -m src.app', 'F3C9C4', 0.34),
            ('RUN pip install -r requirements-dev.txt', 'F0BDB6', 0.42),
            ('COPY . .   ← invalidates cache on ANY change', 'EBB0A8', 0.42),
@@ -296,7 +296,7 @@ def image_layers(s):
         label(s, M + 0.12, y + (h - 0.26) / 2, 5.4, 0.26, t, 10, False, NAVY)
         y += h + 0.04
     x2 = M + CW - 5.6
-    label(s, x2, 1.85, 5.6, 0.3, 'MULTI-STAGE  ~150 MB', 12, True, GREEN)
+    label(s, x2, 1.85, 5.6, 0.3, 'MULTI-STAGE  under 200 MB', 12, True, GREEN)
     lay2 = [('CMD gunicorn … wsgi:app', 'CDE6D5', 0.30),
             ('USER 10001   ← drops root', 'BFE0CA', 0.30),
             ('COPY src/', 'B2DBC0', 0.30),
@@ -412,7 +412,7 @@ def k8s_objects(s):
             ('PVC / PV', 'storage that outlives the pod'),
             ('HPA', 'scales replicas on metrics (needs CPU requests)'),
             ('PodDisruptionBudget', 'minimum availability during drains'),
-            ('NetworkPolicy', 'pod-to-pod firewall (needs a capable CNI)')]
+            ('NetworkPolicy', 'pod-to-pod firewall — k3s enforces it; test yours')]
     for i, (n, d) in enumerate(grid):
         xx = M + (i % 2) * (CW / 2 + 0.1)
         yy = 4.40 + (i // 2) * 0.58
@@ -578,9 +578,9 @@ def shift_left(s):
           11, True, GREEN)
     label(s, M + 6.9, 6.30, 5.2, 0.3, 'and EXTEND RIGHT — runtime detection, production feedback',
           11, True, ORANGE)
-    box(s, M + 6.2, 1.95, 5.4, 1.55, fill=PALE['gold'], line_col=GOLD)
-    label(s, M + 6.4, 2.04, 5.0, 0.3, 'THE ARITHMETIC THAT FORCES THIS', 10.5, True, GOLD)
-    label(s, M + 6.4, 2.36, 5.0, 1.05,
+    box(s, M + 0.6, 1.95, 5.6, 1.55, fill=PALE['gold'], line_col=GOLD)
+    label(s, M + 0.8, 2.04, 5.2, 0.3, 'THE ARITHMETIC THAT FORCES THIS', 10.5, True, GOLD)
+    label(s, M + 0.8, 2.36, 5.2, 1.05,
           '~1 security engineer : ~10 ops : ~100 developers.\n'
           'Serial manual review at the end cannot keep up. It becomes a rubber stamp, '
           'the constraint in the value stream, or both.', 11.5, False, NAVY, line=1.12)
@@ -606,20 +606,12 @@ def secure_pipeline(s):
         if i < 4:
             arrow(s, x + w + 0.02, 3.05, 0.20, 0.28, GREY, 'right')
         x += w + 0.24
-    box(s, M, 4.90, CW, 1.78, fill=PALE['gold'], line_col=GOLD)
-    label(s, M + 0.22, 4.99, CW - 0.44, 0.3, 'GATE ON RISK, NOT ON EVERYTHING', 11, True, GOLD)
-    rows = [('Secret in code or history', 'FAIL — always. Rotate first, scrub second.'),
-            ('CRITICAL / HIGH with a fix available', 'FAIL the build.'),
-            ('HIGH / CRITICAL with NO fix', 'Warn. Record an accepted risk with an owner and an expiry date.'),
-            ('MEDIUM / LOW', 'Report to a dashboard. Fix in planned work.')]
-    y = 5.34
-    for a, b in rows:
-        label(s, M + 0.28, y, 4.5, 0.3, '· ' + a, 11, True, NAVY)
-        label(s, M + 5.0, y, CW - 5.3, 0.3, b, 11, False, GREY)
-        y += 0.32
-    label(s, M + 0.28, 6.40, CW - 0.5, 0.28,
-          'A pipeline that is always red gets bypassed — and a bypassed gate is worse than no gate, because you believe you are protected.',
-          10.5, True, RED, italic=True)
+    box(s, M, 5.05, CW, 1.60, fill=PALE['gold'], line_col=GOLD)
+    label(s, M + 0.25, 5.14, CW - 0.5, 0.3, 'GATE ON RISK, NOT ON EVERYTHING', 11.5, True, GOLD)
+    label(s, M + 0.25, 5.50, CW - 0.5, 1.05,
+          'Every gate runs automatically, on every change. But a pipeline that is always red gets bypassed — '
+          'and a bypassed gate is worse than no gate, because you believe you are protected. '
+          'The next slides set the policy for what fails the build.', 12.5, False, NAVY, line=1.1)
 
 
 def three_pillars(s):
@@ -760,3 +752,344 @@ def sod_control(s):
           'SAY THIS TO YOUR AUDITOR:  "Under the old process two people reviewed the changes that reached the '
           'CAB agenda. Under this one the system makes it impossible to merge without a second named approver, '
           'on every change, and produces the evidence itself."', 12, False, NAVY, line=1.1)
+
+
+# ══════════════════════════════════════════════════════ ADDED · THEORY-FIRST EDITION
+# Drawn for the same 1.80–6.80 band as the originals; s_diagram rescales them.
+from deckkit import BLUE, MSO_SHAPE as _SH
+
+
+def _node(s, x, y, text, fill, d=0.36, colour=WHITE):
+    box(s, x, y, d, d, fill=fill, shape=_SH.OVAL)
+    label(s, x - 0.06, y + 0.06, d + 0.12, d - 0.10, text, 9.5, True, colour, align='c')
+
+
+def three_ways(s):
+    bands = [
+        ('THE FIRST WAY', 'FLOW', 'left to right, from the business to the customer', TEAL, 'teal',
+         ['Business', 'Dev', 'Test', 'Ops', 'Customer'], 'right',
+         'Small batches  ·  limit work in progress  ·  never pass a defect downstream  ·  remove hand-offs'),
+        ('THE SECOND WAY', 'FEEDBACK', 'right to left, fast, at every stage', LTBLUE, 'blue',
+         ['Business', 'Dev', 'Test', 'Ops', 'Customer'], 'left',
+         'Automated tests  ·  telemetry  ·  swarm on failure  ·  stop the line  ·  shift quality and security left'),
+        ('THE THIRD WAY', 'LEARNING', 'a culture that treats failure as information', PLUM, 'plum',
+         None, None,
+         'Blameless post-mortems  ·  game days  ·  improvement work scheduled as real work  ·  '
+         'local discoveries turned into global improvements'),
+    ]
+    y = 1.95
+    for kick, name, sub, col, pk, stages, direction, practice in bands:
+        h = 1.50
+        box(s, M, y, CW, h, fill=PALE[pk], line_col=col, line_w=0.75)
+        box(s, M, y, 0.09, h, fill=col)
+        label(s, M + 0.26, y + 0.10, 2.7, 0.26, kick, 9.5, True, GREY)
+        label(s, M + 0.26, y + 0.36, 2.7, 0.48, name, 22, True, col, font='Aptos Display')
+        label(s, M + 0.26, y + 0.88, 2.55, 0.52, sub, 10, False, GREY)
+        x0, wide = M + 3.05, CW - 3.30
+        if stages:
+            bw = 1.42
+            gap = (wide - 5 * bw) / 4
+            for i, st in enumerate(stages):
+                box(s, x0 + i * (bw + gap), y + 0.16, bw, 0.42, fill=WHITE, line_col=col, line_w=0.75,
+                    text=st, pt=11, bold=True, colour=NAVY, align='c', anchor='m')
+            arrow(s, x0, y + 0.66, wide, 0.20, col, direction)
+        else:
+            label(s, x0, y + 0.14, wide, 0.55, '↻   learn  →  improve  →  share  →  repeat',
+                  20, True, col, align='c', font='Aptos Display')
+        label(s, x0, y + 0.94, wide, 0.50, practice, 11, False, NAVY, align='c')
+        y += h + 0.10
+
+
+def vsm_example(s):
+    steps = [('Backlog\nrefine', 2, 40, 80), ('Dev', 16, 4, 90), ('Code\nreview', 1, 26, 85),
+             ('QA\ntest', 8, 60, 70), ('CAB\napprove', 0.5, 120, 95), ('Deploy', 2, 48, 90)]
+    gap = 0.25
+    w = (CW - 5 * gap) / 6
+    x = M
+    for i, (name, pt_, wt, ca) in enumerate(steps):
+        worst = wt == 120
+        col = RED if worst else TEAL
+        box(s, x, 1.95, w, 0.62, fill=col, text=name, pt=11.5, bold=True, colour=WHITE,
+            align='c', anchor='m')
+        box(s, x, 2.57, w, 1.12, fill=PALE['red'] if worst else PALE['grey'],
+            line_col=col, line_w=0.75)
+        label(s, x + 0.12, 2.64, w - 0.2, 0.32, f'PT  {pt_:g} h', 11.5, True, NAVY)
+        label(s, x + 0.12, 2.94, w - 0.2, 0.32, f'WT  {wt} h', 11.5, True, RED if worst else GREY)
+        label(s, x + 0.12, 3.24, w - 0.2, 0.32, f'%C/A  {ca}', 11, False, NAVY)
+        bh = 1.35 * wt / 120
+        box(s, x + w * 0.2, 3.86, w * 0.6, max(0.06, bh), fill=RED if worst else 'C9D2DA')
+        if i < 5:
+            arrow(s, x + w + 0.03, 2.10, gap - 0.06, 0.30, GREY, 'right')
+        x += w + gap
+    label(s, M, 5.24, CW, 0.26, 'grey bars = wait time, drawn to scale', 9.5, False, GREY, italic=True)
+    stats = [('TOTAL PROCESS TIME', '29.5 h'), ('TOTAL WAIT TIME', '298 h'),
+             ('LEAD TIME', '327.5 h  ≈ 8 working weeks'), ('FLOW EFFICIENCY', '29.5 ÷ 327.5 = 9 %'),
+             ('ROLLED %C/A', '.80×.90×.85×.70×.95×.90 = 36.6 %'), ('THE CONSTRAINT', 'CAB approval — 120 h of queue')]
+    cw3 = CW / 3
+    for i, (k, v) in enumerate(stats):
+        cx = M + (i % 3) * cw3
+        cy = 5.55 + (i // 3) * 0.58
+        box(s, cx + 0.04, cy, cw3 - 0.08, 0.52, fill=NAVY if i == 5 else PALE['blue'])
+        label(s, cx + 0.16, cy + 0.03, cw3 - 0.3, 0.22, k, 8.5, True, 'B9D4EA' if i == 5 else GREY)
+        label(s, cx + 0.16, cy + 0.22, cw3 - 0.3, 0.28, v, 11, True, WHITE if i == 5 else NAVY)
+
+
+def toolchain_pipeline(s):
+    cols = [('1 · SOURCE', ['git commit', 'pull request', 'branch protection', 'CODEOWNERS'], 'Labs 02–03', TEAL),
+            ('2 · CI', ['lint + unit tests', 'gitleaks · bandit · pip-audit', 'docker build', 'Trivy scan + SBOM'],
+             'Labs 04–06 · 17', LTBLUE),
+            ('3 · ARTEFACT', ['GHCR registry', 'tagged with the git SHA', 'immutable', 'promoted, never rebuilt'],
+             'Labs 06 · 15', BLUE),
+            ('4 · DELIVERY', ['manifest updated', 'GitOps reconciles', 'rolling · blue-green', 'canary · rollback'],
+             'Labs 15–16', ORANGE),
+            ('5 · RUNTIME', ['Kubernetes (k3d)', 'provisioned by Terraform', 'configured by Ansible', 'config + secrets'],
+             'Labs 09–14', GREEN),
+            ('6 · FEEDBACK', ['Prometheus /metrics', 'Grafana dashboards', 'SLO burn-rate alerts', 'on-call + runbook'],
+             'Lab 18', PLUM)]
+    gap = 0.20
+    w = (CW - 5 * gap) / 6
+    x = M
+    for i, (name, items, labs, col) in enumerate(cols):
+        box(s, x, 1.95, w, 0.52, fill=col, text=name, pt=11.5, bold=True, colour=WHITE, align='c', anchor='m')
+        box(s, x, 2.47, w, 2.30, fill=PALE['grey'], line_col=col, line_w=0.75)
+        yy = 2.62
+        for it in items:
+            label(s, x + 0.08, yy, w - 0.14, 0.50, it, 10.5, False, NAVY, align='c')
+            yy += 0.53
+        label(s, x, 4.84, w, 0.28, labs, 10, True, col, align='c')
+        if i < 5:
+            arrow(s, x + w + 0.02, 2.05, gap - 0.04, 0.30, GREY, 'right')
+        x += w + gap
+    line(s, M + CW - w / 2, 5.20, M + CW - w / 2, 5.46, PLUM, 1.5)
+    line(s, M + w / 2, 5.46, M + CW - w / 2, 5.46, PLUM, 1.5, dash=True)
+    arrow(s, M + w / 2 - 0.13, 5.14, 0.26, 0.30, PLUM, 'up')
+    label(s, M + 2.2, 5.18, CW - 4.4, 0.26, 'blameless review → the next change', 10, True, PLUM, align='c')
+    box(s, M, 5.78, CW, 0.88, fill=NAVY)
+    label(s, M + 0.25, 5.86, CW - 0.5, 0.72,
+          'This picture is the course. Every box is a lab, and by the end of day 6 you will have built '
+          'all of it, end to end, on your own machine.', 14, True, WHITE, anchor='m', align='c')
+
+
+def merge_strategies(s):
+    qw = (CW - 0.30) / 2
+    quads = [
+        ('FAST-FORWARD', TEAL, 'when nobody else has changed main',
+         'main simply moves forward to include your commits C and D. No extra commit is needed.'),
+        ('MERGE COMMIT', ORANGE, 'branches that other people also use',
+         'A joining commit M ties the two lines together. Nothing is changed, so it is always safe.'),
+        ('SQUASH MERGE', GREEN, 'pull requests — what this course uses',
+         'Your commits C, D and E become ONE commit S on main. A tidy history. Then delete the branch.'),
+        ('REBASE', PLUM, 'updating your OWN branch',
+         'Your commits are copied on top of the latest main as C′ and D′, with new IDs. Only for work nobody else has.'),
+    ]
+    for q, (name, col, use, cap) in enumerate(quads):
+        x = M + (q % 2) * (qw + 0.30)
+        y = 1.95 + (q // 2) * 2.40
+        box(s, x, y, qw, 2.28, fill=PALE['grey'], line_col=col, line_w=1.0)
+        label(s, x + 0.18, y + 0.08, 3.6, 0.30, name, 12, True, col)
+        gy = y + 0.46
+        grey = 'B7C0C8'
+        def chain(xs, yy, names, fills, dashed=False):
+            for a in range(len(xs) - 1):
+                line(s, xs[a] + 0.36, yy + 0.18, xs[a + 1], yy + 0.18, grey, 1.5, dash=dashed)
+            for xx, nm, fl in zip(xs, names, fills):
+                _node(s, xx, yy, nm, fl)
+        base = x + 0.30
+        if q == 0:
+            chain([base + i * 0.72 for i in range(4)], gy + 0.28, ['A', 'B', 'C', 'D'], [NAVY, NAVY, col, col])
+            label(s, base + 2.95, gy + 0.25, 1.0, 0.3, '◄ main', 10, True, NAVY)
+        elif q == 1:
+            xs = [base, base + 0.72, base + 1.44, base + 2.16, base + 3.10]
+            chain(xs, gy, ['A', 'B', 'E', 'F', 'M'], [NAVY, NAVY, NAVY, NAVY, col])
+            fx = [base + 1.25, base + 2.20]
+            line(s, xs[1] + 0.30, gy + 0.30, fx[0] + 0.05, gy + 0.56, grey, 1.5)
+            line(s, fx[0] + 0.36, gy + 0.66, fx[1], gy + 0.66, grey, 1.5)
+            line(s, fx[1] + 0.33, gy + 0.56, xs[4] + 0.06, gy + 0.30, grey, 1.5)
+            _node(s, fx[0], gy + 0.48, 'C', LTBLUE); _node(s, fx[1], gy + 0.48, 'D', LTBLUE)
+        elif q == 2:
+            xs = [base, base + 0.72, base + 1.55]
+            chain(xs, gy, ['A', 'B', 'S'], [NAVY, NAVY, col])
+            fx = [base + 1.25, base + 1.97, base + 2.69]
+            chain(fx, gy + 0.50, ['C', 'D', 'E'], ['C9D2DA'] * 3, dashed=True)
+            label(s, base + 3.10, gy + 0.52, 1.3, 0.3, '→ squashed', 9.5, True, GREY)
+        else:
+            xs = [base + i * 0.64 for i in range(6)]
+            chain(xs, gy, ['A', 'B', 'E', 'F', 'C′', 'D′'], [NAVY] * 4 + [col, col])
+            chain([base + 1.25, base + 1.89], gy + 0.50, ['C', 'D'], ['C9D2DA'] * 2, dashed=True)
+            label(s, base + 2.35, gy + 0.52, 1.9, 0.3, '✗ old copies, left behind', 9.5, True, RED)
+        label(s, x + 0.18, y + 1.42, qw - 0.3, 0.46, cap, 10.5, False, NAVY)
+        label(s, x + 0.18, y + 1.92, qw - 0.3, 0.28, 'USE FOR:  ' + use, 9.5, True, col)
+
+
+def test_pyramid(s):
+    levels = [('END-TO-END', '~5 %', 1.7, ORANGE, 'Few · slow (minutes) · break easily · use the whole system the way a user would'),
+              ('INTEGRATION', '~15 %', 3.2, LTBLUE, 'Some · seconds · check parts working together, such as the app and its database'),
+              ('UNIT', '~80 %', 4.7, GREEN, 'Many · milliseconds · check one small piece on its own · cheap — the base of it all')]
+    cx = M + 2.55
+    y = 2.00
+    for name, share, w, col, desc in levels:
+        box(s, cx - w / 2, y, w, 0.86, fill=col)
+        label(s, cx - w / 2, y + 0.10, w, 0.34, name, 12, True, WHITE, align='c')
+        label(s, cx - w / 2, y + 0.44, w, 0.32, share, 11, False, WHITE, align='c')
+        label(s, M + 5.35, y + 0.22, CW - 5.4, 0.50, desc, 12, False, NAVY, anchor='m')
+        line(s, cx + w / 2 + 0.08, y + 0.43, M + 5.25, y + 0.43, 'C9D2DA', 1.0, dash=True)
+        y += 0.96
+    box(s, M, 5.02, CW, 0.78, fill=PALE['red'], line_col=RED)
+    label(s, M + 0.22, 5.08, CW - 0.44, 0.66,
+          'THE UPSIDE-DOWN PYRAMID: mostly slow tests that click through the screens, a 30-minute wait nobody '
+          'trusts, and "just run it again" whenever something fails.', 11.5, False, NAVY, anchor='m')
+    box(s, M, 5.92, CW, 0.74, fill=PALE['green'], line_col=GREEN)
+    label(s, M + 0.22, 5.98, CW - 0.44, 0.62,
+          'PayTrack API\'s tests sit at the base: no database needed, under a second. That is what keeps the '
+          'whole set of checks under 10 minutes.', 11.5, False, NAVY, anchor='m')
+
+
+def jenkins_architecture(s):
+    box(s, M, 2.70, 1.85, 0.80, fill=PALE['grey'], line_col=GREY, text='Git webhook\nor poll', pt=11,
+        bold=True, colour=NAVY, align='c', anchor='m')
+    arrow(s, M + 1.92, 2.94, 0.62, 0.32, GREY, 'right')
+    cx, cw_ = M + 2.62, 5.10
+    box(s, cx, 1.95, cw_, 2.25, fill=PALE['blue'], line_col=NAVY, line_w=1.0)
+    box(s, cx, 1.95, cw_, 0.46, fill=NAVY, text='JENKINS CONTROLLER', pt=12, bold=True, colour=WHITE,
+        align='c', anchor='m')
+    for i, t in enumerate(['schedules builds', 'stores job config and build history',
+                           'holds EVERY credential Jenkins uses', 'serves the UI and API']):
+        label(s, cx + 0.30, 2.55 + i * 0.38, cw_ - 0.5, 0.34, '·  ' + t, 11.5, i == 2, RED if i == 2 else NAVY)
+    aw = 2.35
+    for i, (nm, lab_, ex) in enumerate([('AGENT 1', 'label: linux', 'executors: 2'),
+                                        ('AGENT 2', 'label: docker', 'executors: 4')]):
+        ax = cx + 0.10 + i * (aw + 0.20)
+        arrow(s, ax + aw / 2 - 0.16, 4.26, 0.32, 0.40, GREY, 'down')
+        box(s, ax, 4.72, aw, 1.05, fill=PALE['green'], line_col=GREEN, line_w=0.75)
+        label(s, ax, 4.78, aw, 0.30, nm, 11.5, True, GREEN, align='c')
+        label(s, ax, 5.10, aw, 0.28, lab_, 10.5, False, NAVY, align='c')
+        label(s, ax, 5.38, aw, 0.28, ex, 10.5, False, NAVY, align='c')
+    label(s, cx, 5.84, cw_, 0.28, 'builds actually run here', 10.5, True, GREEN, align='c', italic=True)
+    rx = cx + cw_ + 0.30
+    rw = M + CW - rx
+    box(s, rx, 1.95, rw, 2.25, fill=PALE['red'], line_col=RED)
+    label(s, rx + 0.18, 2.05, rw - 0.3, 0.3, 'SET CONTROLLER EXECUTORS TO 0', 10.5, True, RED)
+    label(s, rx + 0.18, 2.40, rw - 0.3, 1.7,
+          'A build running on the controller can read every credential Jenkins holds. '
+          'A malicious or buggy build there is a breach of all of them at once.', 11.5, False, NAVY, line=1.08)
+    box(s, rx, 4.40, rw, 1.72, fill=PALE['gold'], line_col=GOLD)
+    label(s, rx + 0.18, 4.50, rw - 0.3, 0.3, 'THE REAL COST', 10.5, True, GOLD)
+    label(s, rx + 0.18, 4.84, rw - 0.3, 1.2,
+          'A stateful, security-sensitive server: patching, backups, plugin upgrades. '
+          '"Free" is a licence statement, not a cost statement.', 11.5, False, NAVY, line=1.08)
+
+
+def actions_hierarchy(s):
+    box(s, M, 1.95, CW, 4.72, fill=PALE['blue'], line_col=NAVY, line_w=1.0)
+    label(s, M + 0.22, 2.02, CW - 0.4, 0.30,
+          'EVENT   push · pull_request · schedule · workflow_dispatch · release', 11.5, True, NAVY)
+    box(s, M + 0.30, 2.42, CW - 0.60, 4.05, fill=WHITE, line_col=TEAL, line_w=1.0)
+    label(s, M + 0.50, 2.48, CW - 1.0, 0.30,
+          'WORKFLOW   .github/workflows/ci.yml  —  one YAML file per workflow', 11.5, True, TEAL)
+    jw = (CW - 0.60 - 0.40 - 0.75) / 2
+    jobs = [('JOB  test', 'runs-on: ubuntu-24.04',
+             ['uses: actions/checkout@<sha>', 'uses: actions/setup-python@<sha>',
+              'run: pip install -r requirements-dev.txt', 'run: flake8 src tests', 'run: pytest --cov']),
+            ('JOB  build', 'needs: test',
+             ['uses: actions/checkout@<sha>', 'run: docker build -t app:${{ github.sha }} .',
+              'run: trivy image app:${{ github.sha }}', 'run: syft app:${{ github.sha }} -o spdx-json'])]
+    for j, (nm, sub, steps) in enumerate(jobs):
+        jx = M + 0.50 + j * (jw + 0.75)
+        box(s, jx, 2.92, jw, 3.38, fill=PALE['grey'], line_col=ORANGE, line_w=1.0)
+        label(s, jx + 0.16, 2.98, jw - 0.3, 0.30, nm, 11.5, True, ORANGE)
+        label(s, jx + 0.16, 3.26, jw - 0.3, 0.26, sub, 10, True, GREY)
+        yy = 3.62
+        for st in steps:
+            box(s, jx + 0.16, yy, jw - 0.32, 0.40, fill=WHITE, line_col='C9D2DA', line_w=0.5)
+            label(s, jx + 0.26, yy + 0.05, jw - 0.5, 0.30, st, 10, False, NAVY, font='Consolas')
+            yy += 0.48
+    ax = M + 0.50 + jw + 0.08
+    arrow(s, ax, 4.30, 0.58, 0.36, ORANGE, 'right')
+    label(s, ax - 0.2, 4.70, 1.0, 0.5, 'needs:', 10, True, ORANGE, align='c')
+
+
+def docker_architecture(s):
+    for i, (t, sub) in enumerate([('docker CLI', 'the client — holds no state'),
+                                  ('docker compose', 'many containers, one file')]):
+        y = 2.05 + i * 1.05
+        box(s, M, y, 2.55, 0.85, fill=PALE['grey'], line_col=GREY, line_w=0.75)
+        label(s, M + 0.1, y + 0.08, 2.35, 0.32, t, 12, True, NAVY, align='c', font='Consolas')
+        label(s, M + 0.1, y + 0.44, 2.35, 0.32, sub, 10, False, GREY, align='c')
+    arrow(s, M + 2.62, 2.62, 0.95, 0.34, GREY, 'right')
+    label(s, M + 2.40, 3.02, 1.45, 0.60, 'REST over\ndocker.sock', 9.5, True, GREY, align='c')
+    cx, cw_ = M + 3.65, 4.35
+    tiers = [('dockerd', 'the daemon · images, containers, networks, volumes · BuildKit builds', 2.05, 1.00, NAVY),
+             ('containerd', 'container lifecycle — the same runtime Kubernetes uses', 3.45, 0.85, BLUE),
+             ('runc', 'the OCI runtime: makes the namespace and cgroup system calls', 4.70, 0.85, TEAL)]
+    for name, sub, y, h, col in tiers:
+        box(s, cx, y, cw_, h, fill=PALE['blue'], line_col=col, line_w=1.0)
+        box(s, cx, y, 0.08, h, fill=col)
+        label(s, cx + 0.25, y + 0.07, cw_ - 0.4, 0.32, name, 13, True, col, font='Consolas')
+        label(s, cx + 0.25, y + 0.40, cw_ - 0.4, h - 0.45, sub, 10.5, False, NAVY)
+    for y in (3.08, 4.33):
+        arrow(s, cx + cw_ / 2 - 0.14, y, 0.28, 0.34, GREY, 'down')
+    box(s, cx, 5.95, cw_, 0.52, fill=NAVY, text='LINUX KERNEL — namespaces · cgroups · OverlayFS',
+        pt=11, bold=True, colour=WHITE, align='c', anchor='m')
+    arrow(s, cx + cw_ / 2 - 0.14, 5.58, 0.28, 0.34, GREY, 'down')
+    rx = cx + cw_ + 0.95
+    rw = M + CW - rx
+    box(s, rx, 2.05, rw, 1.00, fill=PALE['green'], line_col=GREEN, line_w=1.0)
+    label(s, rx + 0.1, 2.12, rw - 0.2, 0.30, 'REGISTRY', 12, True, GREEN, align='c')
+    label(s, rx + 0.1, 2.46, rw - 0.2, 0.50, 'ghcr.io · docker.io · Harbor', 10.5, False, NAVY, align='c')
+    arrow(s, cx + cw_ + 0.08, 2.40, 0.80, 0.30, GREEN, 'left')
+    label(s, cx + cw_ + 0.02, 2.70, 0.92, 0.30, 'pull / push', 9, True, GREEN, align='c')
+    box(s, rx, 3.45, rw, 2.10, fill=PALE['red'], line_col=RED, line_w=1.0)
+    label(s, rx + 0.18, 3.55, rw - 0.3, 0.30, 'THE SOCKET IS ROOT', 11, True, RED)
+    label(s, rx + 0.18, 3.90, rw - 0.3, 1.60,
+          'Membership of the docker group is root on the host: docker run -v /:/host --privileged '
+          'owns the machine. Rootless mode and Podman exist to address this.', 11, False, NAVY, line=1.05)
+    label(s, M, 4.40, 3.40, 1.40,
+          'Kubernetes talks to containerd directly. Docker the daemon is not in a modern cluster — '
+          'the OCI image format is what connects them.', 10.5, False, GREY, italic=True)
+
+
+def service_endpoints(s):
+    box(s, M, 2.05, 2.55, 1.05, fill=PALE['grey'], line_col=GREY, line_w=0.75)
+    label(s, M + 0.1, 2.12, 2.35, 0.3, 'A CALLER', 10.5, True, GREY, align='c')
+    label(s, M + 0.1, 2.44, 2.35, 0.55, 'http://paytrack-api:8080', 10, True, NAVY, align='c', font='Consolas')
+    arrow(s, M + 2.62, 2.40, 0.62, 0.32, GREY, 'right')
+    sx, sw = M + 3.32, 5.30
+    box(s, sx, 1.95, sw, 1.22, fill=PALE['blue'], line_col=NAVY, line_w=1.0)
+    label(s, sx + 0.2, 2.00, sw - 0.4, 0.32, 'SERVICE  paytrack-api', 12.5, True, NAVY)
+    label(s, sx + 0.2, 2.32, sw - 0.4, 0.82,
+          'ClusterIP 10.43.7.9 — a stable virtual IP\n'
+          'DNS paytrack-api.paytrack-dev.svc.cluster.local\n'
+          'selector: app.kubernetes.io/name=paytrack-api', 10, False, NAVY, line=1.02)
+    arrow(s, sx + sw / 2 - 0.14, 3.20, 0.28, 0.30, GREY, 'down')
+    box(s, sx, 3.55, sw, 0.72, fill=WHITE, line_col=TEAL, line_w=1.0)
+    label(s, sx + 0.2, 3.58, sw - 0.4, 0.28, 'ENDPOINTSLICE — only READY pods receive traffic', 10.5, True, TEAL)
+    label(s, sx + 0.2, 3.88, sw - 0.4, 0.34, '10.42.1.7 ✔   10.42.2.3 ✔   10.42.0.11 ✗ not ready', 10.5, False, NAVY,
+          font='Consolas')
+    pw = (sw - 0.40) / 3
+    pods = [('10.42.1.7', 'READY', GREEN, 'green'), ('10.42.2.3', 'READY', GREEN, 'green'),
+            ('10.42.0.11', 'Running, 0/1 READY', GREY, 'grey')]
+    for i, (ip, st, col, pk) in enumerate(pods):
+        px = sx + i * (pw + 0.20)
+        if i < 2:
+            arrow(s, px + pw / 2 - 0.13, 4.32, 0.26, 0.34, col, 'down')
+        else:
+            label(s, px + pw / 2 - 0.3, 4.28, 0.6, 0.4, '✗', 16, True, RED, align='c')
+        box(s, px, 4.72, pw, 0.95, fill=PALE[pk], line_col=col, line_w=1.0)
+        label(s, px + 0.05, 4.78, pw - 0.1, 0.28, 'Pod', 10.5, True, col, align='c')
+        label(s, px + 0.05, 5.04, pw - 0.1, 0.28, ip, 10, False, NAVY, align='c', font='Consolas')
+        label(s, px + 0.05, 5.32, pw - 0.1, 0.30, st, 9.5, True, col, align='c')
+    rx = sx + sw + 0.30
+    rw = M + CW - rx
+    box(s, rx, 1.95, rw, 2.32, fill=PALE['gold'], line_col=GOLD)
+    label(s, rx + 0.15, 2.03, rw - 0.25, 0.3, 'HOW THE PACKET GETS THERE', 10, True, GOLD)
+    label(s, rx + 0.15, 2.36, rw - 0.25, 1.85,
+          'kube-proxy on every node programmes iptables or IPVS rules, so a packet to the ClusterIP '
+          'is rewritten to one ready pod IP.', 10.5, False, NAVY, line=1.05)
+    box(s, rx, 4.40, rw, 1.27, fill=PALE['red'], line_col=RED)
+    label(s, rx + 0.15, 4.47, rw - 0.25, 0.3, 'THE AFTERNOON-WASTER', 10, True, RED)
+    label(s, rx + 0.15, 4.78, rw - 0.25, 0.85,
+          'Empty EndpointSlice? No ready pods, or a label that does not match the selector.', 10.5, False, NAVY)
+    box(s, M, 5.90, CW, 0.66, fill=NAVY)
+    label(s, M + 0.2, 5.96, CW - 0.4, 0.54,
+          'Running is not serving. The readiness probe decides who receives traffic — the Service never '
+          'looks at the Deployment, only at pod labels.', 12, True, WHITE, anchor='m', align='c')

@@ -3,9 +3,9 @@
 | | |
 |---|---|
 | **Day** | 1 |
-| **Duration** | 25 minutes (5 if run before the course — please do) |
+| **Duration** | 25 minutes (5 if run before the course — please do), plus 15 for the accounts in Step 8 |
 | **Module** | 1 — DevOps Foundations |
-| **You will produce** | An Ubuntu 24.04 machine with the complete course toolchain, verified |
+| **You will produce** | An Ubuntu 24.04 machine with the complete course toolchain, verified, and the GitHub (and optionally GitLab) accounts the labs push to |
 | **Feeds into** | Every subsequent lab |
 
 ---
@@ -41,14 +41,16 @@ sudo ~/devops-course/course-material/scripts/install-ubuntu24.sh
 ```
 **What this does:** installs and verifies **everything the six days need** — base packages
 (including `ss`, `lsof`, `dig` and `nc`, which the labs use), Docker + Compose, the GitHub CLI,
-kubectl, k3d, Helm, kubeseal, Terraform, Ansible, Trivy, Gitleaks, Syft and pre-commit. It also
+kubectl, k3d, Helm, kubeseal, Terraform, Ansible, Trivy, Gitleaks, Syft, pre-commit and **act** (which runs
+GitHub Actions workflows on your machine, for Lab 04A). It also
 does the *setup* the labs assume: the kernel limits k3s needs, the seven `/etc/hosts` entries
 Ingress routes on, your `~/devops-course` workspace with the course material cloned into it,
 the Helm repositories day 6 uses, and a pre-pull of the week's container images.
 It is **idempotent**: re-run it any time and it only does what is missing.
 
 **Two things it deliberately leaves to you**, because they are your credentials:
-`git config --global user.name`/`user.email`, and `gh auth login`.
+`git config --global user.name`/`user.email` (Step 6), and your **accounts** — GitHub, `gh auth login`
+and, if you will do Lab 04B, GitLab (Step 8). Do Step 8 even if the script did everything else.
 
 | Flag | Does |
 |---|---|
@@ -319,8 +321,8 @@ set -u
 fail=0
 check() {                       # check <label> <command...>
   local label="$1"; shift
-  if out=$("$@" 2>&1 | head -1); then
-    printf '  \033[32m✔\033[0m %-12s %s\n' "$label" "$out"
+  if out=$("$@" 2>&1); then                     # the TOOL's exit code, not a pipe's
+    printf '  \033[32m✔\033[0m %-12s %s\n' "$label" "${out%%$'\n'*}"
   else
     printf '  \033[31m✗\033[0m %-12s NOT FOUND or FAILED\n' "$label"; fail=1
   fi
@@ -338,6 +340,13 @@ check trivy      trivy --version
 check gitleaks   gitleaks version
 check syft       syft version
 check python     python3 --version
+check gh         gh --version
+echo "── optional (Lab 04A) ──"
+if command -v act >/dev/null 2>&1; then
+  printf '  \033[32m✔\033[0m %-12s %s\n' act "$(act --version)"
+else
+  printf '  - %-12s not installed — only needed for Lab 04A (Step 8.4)\n' act
+fi
 echo "── daemon check ──"
 if docker info >/dev/null 2>&1; then
   printf '  \033[32m✔\033[0m docker daemon reachable without sudo\n'
@@ -356,9 +365,139 @@ chmod +x toolcheck.sh
   `$1`, `$@` and the escape sequences while writing the file, so the script is stored
   literally.
 - `set -u` makes the script fail on an undefined variable.
+- `if out=$("$@" 2>&1)` tests the **tool's own** exit code. (Piping it through `head` first would
+  test `head`'s exit code instead — which is always success, so a missing tool would get a green
+  tick.) `${out%%$'\n'*}` keeps only the first line of the output.
 - `chmod +x` makes it executable; `./toolcheck.sh` runs it from the current directory.
 
 ✅ **Final checkpoint:** the script must print **ALL CHECKS PASSED**.
+
+---
+
+## Step 8 — Accounts and collaboration tools (15 min — do this before the course)
+
+From Day 2 your code lives on GitHub, and the optional Labs 04A and 04B use `act` and GitLab.
+**Accounts are the slowest thing to set up** — confirmation emails, two-factor codes, identity
+checks — and the one thing a trainer cannot do for you in the room.
+
+| Step | Needed for | Required? |
+|---|---|---|
+| 8.1 GitHub account + `gh` sign-in | Labs 03 onwards | **Yes** |
+| 8.2 SSH key | Lab 04B (GitLab); optional for GitHub | Recommended |
+| 8.3 GitLab account | Lab 04B | Optional |
+| 8.4 act | Lab 04A | Optional |
+
+### Step 8.1 — Your GitHub account
+
+1. **Sign up** at **https://github.com/signup** (skip if you already have an account). Use an
+   email address you will keep after the course, and choose the **Free** plan. Your **username**
+   appears in every repository URL — `github.com/<username>/paytrack-api` — so pick one you are
+   happy for a colleague to see.
+2. **Verify your email address** from the message GitHub sends.
+3. **Turn on two-factor authentication:** your avatar (top right) → **Settings** → **Password and
+   authentication** → **Enable two-factor authentication** → use an authenticator app. **Download
+   the recovery codes** and keep them somewhere safe. GitHub requires 2FA from people who contribute
+   code, so it will ask you sooner or later — better now than halfway through Lab 03.
+4. **Keep your email address private:** **Settings** → **Emails** → tick **Keep my email addresses
+   private**. GitHub shows you a private address such as
+   `12345678+your-username@users.noreply.github.com`. Copy it, and use it for your commits:
+
+```bash
+git config --global user.email "12345678+your-username@users.noreply.github.com"
+git config --global user.email
+```
+**What this does:** replaces the email you set in Step 6 with GitHub's private "noreply" address,
+then prints it so you can check it. Every commit you push is public on a public repository; this
+way your commits still link to your GitHub profile, but your real address is not published.
+(Paste **your** address from the Emails page — the number is different for everyone.)
+
+Back on the Emails page, also tick **Block command line pushes that expose my email**. From now
+on GitHub refuses a push containing a commit with your private address, with the error `GH007`,
+instead of publishing it.
+
+```bash
+gh auth login --hostname github.com --git-protocol https --web --scopes workflow
+```
+**What this does:** signs the GitHub CLI **and git** in to your account, with no password or token
+to copy by hand.
+- Answer **Y** to *Authenticate Git with your GitHub credentials?* — `gh` then acts as git's
+  credential helper, so `git push` to GitHub just works.
+- `gh` prints a **one-time code** and opens a browser (on a machine with no browser, open
+  **https://github.com/login/device** on your laptop or phone). Enter the code and approve.
+- `--scopes workflow` adds permission to push changes to `.github/workflows/`. Without it, Lab 04's
+  push fails with `refusing to allow an OAuth App to create or update workflow`.
+
+```bash
+gh auth status
+git config --global --get-regexp '^credential'
+```
+**What this does:** `gh auth status` shows `✓ Logged in to github.com account <your-username>` and
+the token's scopes, which must include `'workflow'`. The second command shows that git now asks
+`gh auth git-credential` for GitHub passwords.
+
+> **Already signed in without `workflow`?** Run `gh auth refresh -s workflow`.
+> **Prefer a token?** Lab 03 Step 1.2 explains a fine-grained personal access token instead.
+
+### Step 8.2 — An SSH key
+
+```bash
+[ -f ~/.ssh/id_ed25519 ] || ssh-keygen -t ed25519 -C "$(git config --global user.email)" -f ~/.ssh/id_ed25519
+cat ~/.ssh/id_ed25519.pub
+```
+**What this does:** creates an SSH key pair **only if you do not already have one**, labelled with
+your git email, then prints the **public** half.
+- `ssh-keygen` asks for a **passphrase**. Use one: it protects the key if your laptop is stolen, and
+  `ssh-agent` remembers it for the session so you do not type it on every push.
+- `~/.ssh/id_ed25519` is the **private** key — it never leaves this machine and you never paste it
+  anywhere. `~/.ssh/id_ed25519.pub` is the **public** key — safe to give to GitHub and GitLab.
+
+**GitHub (optional — `gh` already handles HTTPS).** To use SSH as well: **Settings** → **SSH and GPG
+keys** → **New SSH key** → paste the `.pub` line → **Add SSH key**. Then:
+
+```bash
+ssh -T git@github.com
+```
+**What this does:** tests the key against GitHub. The first time, SSH shows GitHub's fingerprint.
+**Compare it** with GitHub's published value before typing `yes`:
+`SHA256:+DiY3wvvV6TuJJhbpZisF/zLDA0zPMSvHdkr4UvCOqU`. Success reads
+`Hi <your-username>! You've successfully authenticated, but GitHub does not provide shell access.`
+The exit code is 1 even when it works — that is normal.
+
+### Step 8.3 — A GitLab account (optional — for Lab 04B)
+
+If you will do Lab 04B, **open the account now**: GitLab.com may ask new users to verify their
+identity with a phone number or a card (checked, not charged) before they can run pipelines, and
+that can take time. Follow **[Lab 04B, Part 1](../lab-04b-gitlab-ci/README.md#part-1--open-a-gitlab-account-and-secure-it-10-min)**:
+sign up, verify, turn on two-factor authentication, add the SSH key from Step 8.2, and run
+`ssh -T git@gitlab.com`.
+
+### Step 8.4 — act (optional — for Lab 04A)
+
+Skip this if the course installer ran: it installs act for you.
+
+```bash
+ACT_VERSION=0.2.89
+ACT_ARCH=$(uname -m | sed 's/aarch64/arm64/')
+cd /tmp
+curl -fsSLO "https://github.com/nektos/act/releases/download/v${ACT_VERSION}/act_Linux_${ACT_ARCH}.tar.gz"
+curl -fsSLO "https://github.com/nektos/act/releases/download/v${ACT_VERSION}/checksums.txt"
+grep " act_Linux_${ACT_ARCH}.tar.gz\$" checksums.txt | sha256sum -c -
+sudo tar -xzf "act_Linux_${ACT_ARCH}.tar.gz" -C /usr/local/bin act
+act --version
+cd ~/devops-course
+```
+**What this does:** downloads a pinned act release **and the project's checksum list**, and checks
+the download against it — you must see `act_Linux_x86_64.tar.gz: OK` (or `arm64`) — before
+extracting the single `act` binary into `/usr/local/bin`. Download, **verify**, then install: the
+responsible version of the `curl | bash` pattern from Step 3. Lab 04A explains how to use it.
+
+✅ **Checkpoint**
+```bash
+~/devops-course/toolcheck.sh
+gh auth status
+```
+`toolcheck.sh` passes (with `act` either ticked or marked optional), and `gh` is logged in with the
+`workflow` scope.
 
 ---
 
@@ -371,6 +510,9 @@ chmod +x toolcheck.sh
 | `pip3 install` → "externally-managed-environment" | PEP 668 on Ubuntu 24.04 | Add `--user --break-system-packages`, or use a venv |
 | Corporate TLS interception breaks `curl` | Proxy re-signs certificates | Add the corporate CA to `/usr/local/share/ca-certificates/` then `sudo update-ca-certificates` |
 | Docker Hub `toomanyrequests` | Anonymous pull limit (100 / 6 h) | `docker login` with a free Docker Hub account |
+| `gh auth login` cannot open a browser | A server or VM with no desktop | Open **https://github.com/login/device** on any device and type the code `gh` printed |
+| `GH007: Your push would publish a private email address` | A commit carries the email you asked GitHub to keep private | `git config --global user.email` with your noreply address, then `git commit --amend --reset-author --no-edit` on the unpushed commit |
+| `Permission denied (publickey)` | The SSH key is not on your account, or a different key is offered | `ssh -vT git@github.com` shows which key is tried |
 | Low on disk later in the week | Images and volumes accumulate | `docker system df` to see usage, `docker system prune -a --volumes` to reclaim (**deletes unused volumes**) |
 
 ---
@@ -378,7 +520,9 @@ chmod +x toolcheck.sh
 ## 🎯 Outcome
 
 A verified Ubuntu 24.04 workstation with git, Docker + Compose, kubectl, k3d, Helm,
-Terraform, Ansible, Trivy, Gitleaks and Syft, plus `~/devops-course/toolcheck.sh`.
+Terraform, Ansible, Trivy, Gitleaks, Syft, the GitHub CLI and (optionally) act, plus
+`~/devops-course/toolcheck.sh` — and a GitHub account with two-factor authentication, a private
+commit email and `gh` signed in (plus, optionally, a verified GitLab account).
 
 **Next:** [Lab 01 — Value Stream Mapping](../lab-01-value-stream-mapping/README.md)
 
@@ -389,6 +533,8 @@ Terraform, Ansible, Trivy, Gitleaks and Syft, plus `~/devops-course/toolcheck.sh
 
 - **Send this lab out 3 days before the course.** Delegates who arrive with a green
   `toolcheck.sh` give you back 25 minutes on day 1 — which day 5 will need.
+- **Put Step 8 in the pre-course email, in bold.** A delegate who meets GitHub's 2FA prompt or
+  GitLab's identity check during Lab 03 loses the lab. Ask for a screenshot of `gh auth status`.
 - **The three failures that actually happen:**
   1. Docker group not applied — they did not log out. Fix with `newgrp docker`.
   2. Corporate proxy / TLS interception kills every `curl`. Have the CA certificate

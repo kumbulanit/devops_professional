@@ -83,7 +83,8 @@ routine.
 | **Postgres (Compose)** | `paytrack` | `paytrack_dev_only` (or your `.env`) | 07 |
 | **Postgres (Kubernetes)** | `paytrack` | `S3cur3-Cl4ss-Only!` — replaced in Lab 17 by a SealedSecret | 11, 17 |
 | **Ansible Vault** | — | `lab-vault-password` (in `ansible/.vault_pass`, git-ignored) | 14 |
-| **GitHub** | your account | **Personal Access Token**, not your password (Settings → Developer settings → PAT → Fine-grained) | 03 |
+| **GitHub** | your account | `gh auth login --scopes workflow` (Lab 00 Step 8.1), or a fine-grained **Personal Access Token** with *Contents* and *Workflows* read & write — never your password | 00, 03 |
+| **GitLab** *(optional)* | your account | SSH key (`ssh -T git@gitlab.com`) — never your password | 04B |
 | **GHCR** | your GitHub user | the automatic `GITHUB_TOKEN` in CI; locally `docker login ghcr.io` with a PAT | 06 |
 | **Container runtime user** | `10001` (numeric, non-root) | n/a | 06 |
 
@@ -190,3 +191,4 @@ curl -s http://paytrack.localhost:8080/api/v1/info | jq      # the live service 
 | GHCR | Free for public packages | Private packages count against storage |
 | Docker Hub | 100 anonymous pulls / 6 h per IP | `toomanyrequests` — fix with `docker login` |
 | GitHub Codespaces | 60 core-hours/month | Codespace stops |
+| GitLab.com CI *(Lab 04B)* | 400 compute minutes/month on Free; new accounts may need identity verification first | Jobs do not start |

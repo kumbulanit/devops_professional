@@ -57,7 +57,9 @@ RUN jenkins-plugin-cli --plugins \
       junit:latest \
       pipeline-stage-view:latest \
       configuration-as-code:latest \
-      credentials-binding:latest
+      credentials-binding:latest \
+      timestamper:latest \
+      ws-cleanup:latest
 EOF
 ```
 **What this does:** builds a Jenkins image with what the pipeline needs baked in.
@@ -67,6 +69,9 @@ EOF
 - `--no-install-recommends` and `rm -rf /var/lib/apt/lists/*` in the **same layer** keep the
   image small: deleting in a later layer would not shrink it (Module 3 §3.3).
 - `jenkins-plugin-cli` installs plugins at build time, so the container starts ready.
+  `timestamper` and `ws-cleanup` are there because the Jenkinsfile in Step 3 uses `timestamps()` and
+  `cleanWs()`; neither comes with the Pipeline plugins, and a pipeline that names a missing step fails
+  before its first stage.
 
 ```bash
 docker build -t jenkins-course:1.0 .
@@ -303,7 +308,7 @@ Open `paytrack-api → main`:
 - **Test Result Trend** — appears from the second build; the graph that makes flakiness
   visible.
 
-✅ **Checkpoint:** a green build with all stages passed and 9 tests recorded.
+✅ **Checkpoint:** a green build with all stages passed and 19 tests recorded.
 
 ```bash
 docker exec jenkins ls -la /var/jenkins_home/jobs/paytrack-api/branches/

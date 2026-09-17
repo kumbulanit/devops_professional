@@ -22,6 +22,7 @@ KUBESEAL_VERSION="0.27.1"
 GITLEAKS_VERSION="8.21.2"
 TRIVY_VERSION="0.74.0"
 SYFT_VERSION="1.14.0"
+ACT_VERSION="0.2.89"                      # Lab 04A: run GitHub Actions workflows locally
 K3S_IMAGE="rancher/k3s:v1.31.2-k3s1"      # matches k8s/k3d-cluster.yaml
 COURSE_REPO="https://github.com/kumbulanit/devops_professional.git"
 
@@ -142,13 +143,14 @@ ARCH_DEB="$(dpkg --print-architecture)"          # amd64 | arm64
 # Every project names its release assets differently. These mappings are checked
 # against the real releases — do not "tidy" them into one variable.
 case "$ARCH_DEB" in
-  amd64) ARCH_ALT="x86_64";  ARCH_GL="x64";   ARCH_TRIVY="64bit" ;;
-  arm64) ARCH_ALT="aarch64"; ARCH_GL="arm64"; ARCH_TRIVY="ARM64" ;;
+  amd64) ARCH_ALT="x86_64";  ARCH_GL="x64";   ARCH_TRIVY="64bit"; ARCH_ACT="x86_64" ;;
+  arm64) ARCH_ALT="aarch64"; ARCH_GL="arm64"; ARCH_TRIVY="ARM64"; ARCH_ACT="arm64" ;;
   *) die "unsupported architecture: $ARCH_DEB (expected amd64 or arm64)" ;;
 esac
 #   deb:    amd64      | arm64      (docker, kubectl, helm, kubeseal, syft)
 #   gitleaks: x64      | arm64
 #   trivy:  64bit      | ARM64
+#   act:    x86_64     | arm64
 
 # $USER can be unset (bare container, cron, some CI); fall back to id -un.
 TARGET_USER="${SUDO_USER:-${USER:-$(id -un)}}"
@@ -256,6 +258,31 @@ step_gh() {
   else
     err "gh install failed (non-fatal)"; FAILED+=("gh")
   fi
+}
+
+# act runs .github/workflows locally in Docker (Lab 04A). The release is checked
+# against the project's published checksums before anything is installed.
+step_act() {
+  want act || return 0
+  hdr "act (GitHub Actions on localhost)"
+  if have act; then ok "$(act --version 2>/dev/null | head -1) already installed"; return 0; fi
+  local base="https://github.com/nektos/act/releases/download/v${ACT_VERSION}"
+  local tgz="act_Linux_${ARCH_ACT}.tar.gz"
+  if (( DRY )); then
+    say "    ${YLW}[dry-run]${RST} curl ${base}/${tgz} + checksums.txt, sha256sum -c, install /usr/local/bin/act"
+    ok "act ${ACT_VERSION} installed"; return 0
+  fi
+  local tmp; tmp="$(mktemp -d)"
+  if retry curl -fsSLo "${tmp}/${tgz}" "${base}/${tgz}" \
+     && retry curl -fsSLo "${tmp}/checksums.txt" "${base}/checksums.txt" \
+     && ( cd "$tmp" && grep " ${tgz}\$" checksums.txt | sha256sum -c - ) >>"$LOG" 2>&1 \
+     && tar -xzf "${tmp}/${tgz}" -C "$tmp" act \
+     && install -o root -g root -m 0755 "${tmp}/act" /usr/local/bin/act; then
+    ok "act ${ACT_VERSION} installed (checksum verified)"; INSTALLED+=("act")
+  else
+    err "act: download, checksum or install failed (non-fatal) — see $LOG"; FAILED+=("act")
+  fi
+  rm -rf "$tmp"
 }
 
 step_k8s() {
@@ -531,6 +558,7 @@ verify() {
   check syft      syft version
   check python    python3 --version
   check gh        gh --version
+  check act       act --version
   check lsof      lsof -v
   check ss        ss -V
 
@@ -561,7 +589,7 @@ main() {
     verify && { hdr "ALL CHECKS PASSED"; exit 0; } || { hdr "${RED}SOME CHECKS FAILED${RST}"; exit 1; }
   fi
 
-  for fn in step_base step_docker step_sysctl step_gh step_k8s step_iac \
+  for fn in step_base step_docker step_sysctl step_gh step_act step_k8s step_iac \
             step_security step_hosts step_git_config step_workspace \
             step_helmrepos step_prepull; do
     step "$fn"
@@ -582,7 +610,9 @@ main() {
   say "  2. Set your git identity:"
   say "       git config --global user.name  \"Your Name\""
   say "       git config --global user.email \"you@example.com\""
-  say "  3. Re-check any time with:  sudo $0 --verify"
+  say "  3. Sign in to GitHub, with permission to push workflow files:"
+  say "       gh auth login --hostname github.com --git-protocol https --web --scopes workflow"
+  say "  4. Re-check any time with:  sudo $0 --verify"
   say ""
   (( ${#SKIPPED[@]} )) && say "  skipped: ${SKIPPED[*]}"
   say "  Full log: $LOG"

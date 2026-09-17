@@ -115,7 +115,7 @@ pipeline able to fail correctly.
 | PVC / PV / StorageClass | Storage request / storage / dynamic provisioner |
 | HPA | Scale replicas on metrics (**needs CPU requests set**) |
 | PodDisruptionBudget | Minimum availability during drains and upgrades |
-| NetworkPolicy | Pod-to-pod firewall (**needs a CNI that enforces it**) |
+| NetworkPolicy | Pod-to-pod firewall. **Only works if something enforces it** — k3s/k3d does (built-in controller); plain Flannel alone does not. Prove it with a probe pod (Lab 11) |
 | ResourceQuota / LimitRange | Namespace caps / per-container defaults |
 
 ## Probes — the rule

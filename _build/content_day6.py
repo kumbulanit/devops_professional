@@ -1,35 +1,95 @@
 # -*- coding: utf-8 -*-
-"""Day 6 — DevSecOps, Observability, Enterprise DevOps.  Modules 7, 8, 9 + Appendix A."""
+"""Day 6 — DevSecOps, Observability, Enterprise DevOps.  Modules 7, 8, 9 + Appendix A.
+
+Theory-first edition: mostly theory with exercises and a live demo; Labs 17–19 are
+started together and finished after class. The day closes with the start of the
+30-60-90 plan and check-in 3.
+"""
 import diagrams as dg
 
 DAY6 = [
  ('title', 6, 'DevSecOps, Observability & Enterprise DevOps',
   'Prove it is safe. Prove it is healthy. Then take it home.',
-  ['DevSecOps — shifting security into the pipeline',
-   'Monitoring, logging and observability · SLOs and error budgets',
-   'Enterprise DevOps — governance, DORA, SRE, platform engineering',
-   'Labs 17–19 — Security gates · Observability · Capstone and game day'],
+  ['DevSecOps — security testing, gating on risk, the pipeline itself, secrets, hardening',
+   'Observability — pillars, metrics, Prometheus, logs, SLOs, burn-rate alerts, incidents',
+   'Enterprise DevOps — governance, DORA, SRE, platform engineering, scaling',
+   'After class — Labs 17–19: security gates · observability · capstone and game day'],
   'Today ends with a plan you can act on next Monday'),
 
+ ('agenda', 'Day 6 at a glance',
+  [('theory', 'DevSecOps: shift left, the classes of testing, SBOMs, gating on risk'),
+   ('exercise', 'PREDICT — which gate catches it?'),
+   ('theory', 'Securing the pipeline · secrets and Sealed Secrets · Kubernetes hardening'),
+   ('theory', 'Observability: pillars, metric types, RED/USE, Prometheus, PromQL, logs'),
+   ('break', 'Break · 15 minutes'),
+   ('exercise', 'DISCUSS — everything is green and nobody can pay'),
+   ('theory', 'SLIs, SLOs, error budgets · burn-rate alerting · incident response'),
+   ('theory', 'Enterprise DevOps: governance, the two DORAs, SRE, platform engineering, scaling'),
+   ('practical', 'Start Lab 17 together: plant a secret and watch the gate fail'),
+   ('exercise', 'AUDIT — what will you actually change?  ·  start your 30-60-90 plan'),
+   ('check', 'Check-in 3 — what you are taking back (5 minutes)'),
+   ('after', 'Finish Labs 17–19 · the capstone verifies everything you built')],
+  'TODAY', {'speaker': 'Say thank-you before you put the check-in 3 QR code up — once people are typing, nobody is '
+            'listening. The 30-60-90 plan is protected time; the Lab 19 game day happens after class.'}),
+
+ ('bullets', 'What today gives you',
+  [('A security pipeline that gates on real risk', 'Without becoming the red build everyone learns to bypass'),
+   ('The pipeline itself treated as a production system', 'Pinned actions, least privilege, short-lived credentials'),
+   ('Observability that answers "is it working for customers?"', 'Not only "is the process up?"'),
+   ('SLOs and error budgets as one number Dev and Ops share', 'And alerts that page for the right reasons'),
+   ('Governance arguments that a risk function will accept', 'Controls on 100 % of changes, with generated evidence'),
+   ('A 30-60-90 day plan grounded in your own day 1 baseline', None)],
+  'TODAY'),
+
  ('section', '1', 'DevSecOps', 'Security as a continuous, automated, shared responsibility',
-  ['Why security must move into the pipeline', 'The classes of testing', 'Gating on risk',
-   'Secrets', 'Container and Kubernetes hardening']),
+  ['Why security moves into the pipeline', 'The classes of testing and the SBOM', 'Gating on risk',
+   'Securing the pipeline itself', 'Secrets and Kubernetes hardening']),
+
+ ('define', 'DevSecOps',
+  'The integration of security practices, tooling and ownership into every stage of the DevOps lifecycle, so '
+  'that security is continuous, automated and shared — rather than a manual gate at the end, run by a separate team.',
+  [('The driver is arithmetic', 'Roughly 1 security engineer : 10 operations engineers : 100 developers'),
+   ('Serial manual review at the end cannot keep up', 'It becomes a rubber stamp, or the constraint in your value stream — usually both'),
+   ('SHIFT LEFT', 'Find issues where they are cheapest to fix and the author still has the context'),
+   ('…and EXTEND RIGHT', 'Runtime detection and production feedback — security across the whole loop')],
+  'MODULE 7 §7.1'),
 
  ('diagram', 'The cost curve — and the arithmetic that forces the change', dg.shift_left,
   'MODULE 7 §7.1'),
 
- ('table', 'The classes of security testing — they are complementary, not alternatives',
-  ['Type', 'Examines', 'Finds', 'Misses'],
-  [['Secret scanning', 'Repo contents AND history', 'Hard-coded keys, tokens, certificates', 'Already-rotated secrets'],
-   ['SAST', 'Your source code, not running', 'Injection, weak crypto, unsafe deserialisation', 'Runtime and config issues'],
-   ['SCA', 'Your DEPENDENCIES', 'Known CVEs in libraries, licence violations', 'Bugs in your own code'],
-   ['Container scan', 'Image layers: OS + app packages', 'Vulnerable base image, misconfig, leaked secrets', 'Logic flaws'],
-   ['IaC scan', 'Terraform, Kubernetes, Dockerfile', 'Privileged containers, public buckets', 'Runtime drift'],
-   ['DAST', 'The RUNNING application', 'Auth flaws, real injection, misconfiguration', 'Unreachable surfaces']],
-  'MODULE 7 §7.2', {'widths': [2.1, 2.9, 3.6, 2.9],
-   'note': ('THE POINT OF THE TABLE', 'In a typical service 70–90 % of the shipped bytes are dependencies. '
-            'A pipeline with only SAST is carefully checking the small part.')}),
+ ('table', 'The DevSecOps principles',
+  ['Principle', 'Meaning'],
+  [['Security is everyone\'s job', 'The authoring team owns the security of what it ships, supported by a security platform team'],
+   ['Automate security testing', 'If it is not in the pipeline, it will not happen consistently'],
+   ['Fail the build on real risk', 'A warning nobody reads is not a control'],
+   ['Secure by default', 'The paved road is the secure road: hardened base images, templates, policies'],
+   ['Least privilege everywhere', 'Humans, pipelines, service accounts and containers'],
+   ['Assume breach', 'Design for containment and detection, not only prevention'],
+   ['Continuous compliance', 'Policy as code, and evidence generated by the pipeline'],
+   ['Blameless security', 'A developer who reports their own mistake is thanked, not punished']],
+  'MODULE 7 §7.1', {'widths': [3.0, 7.0]}),
 
+ ('table', 'The classes of security testing — complementary, not alternatives',
+  ['Type', 'Examines', 'Finds', 'Misses', 'Tool here'],
+  [['Secret scanning', 'Repo contents AND history', 'Keys, tokens, certificates', 'Already-rotated secrets', 'gitleaks'],
+   ['SAST', 'Your source code, not running', 'Injection, weak crypto, unsafe deserialisation', 'Runtime and config issues', 'bandit'],
+   ['SCA', 'Your DEPENDENCIES', 'Known CVEs, licence violations', 'Bugs in your own code', 'pip-audit'],
+   ['Container scan', 'Image layers: OS + app packages', 'Vulnerable base image, secrets in layers', 'Logic flaws', 'Trivy'],
+   ['IaC scan', 'Terraform, Kubernetes, Dockerfile', 'Privileged containers, public buckets', 'Runtime drift', 'Trivy config'],
+   ['DAST', 'The RUNNING application', 'Auth flaws, real injection, misconfiguration', 'Unreachable surfaces', 'OWASP ZAP'],
+   ['Runtime', 'Live production behaviour', 'Exploitation attempts, anomalous syscalls', '—', 'Falco (concept)']],
+  'MODULE 7 §7.2', {'widths': [1.9, 2.6, 3.0, 2.3, 1.6],
+   'note': ('THE POINT', 'In a typical service 70–90 % of the shipped bytes are dependencies. A pipeline with '
+            'only SAST is carefully checking the small part.')}),
+
+ ('define', 'SBOM — Software Bill of Materials',
+  'A formal, machine-readable inventory of every component in a piece of software, with versions and ideally '
+  'provenance. The standard formats are SPDX and CycloneDX.',
+  [('The Log4Shell test', 'Organisations with SBOMs answered "are we affected, and where?" in hours, not weeks'),
+   ('Generate one per build', 'And store it with the artefact — Syft in Lab 17'),
+   ('Re-scan stored SBOMs when new CVEs are published', 'The vulnerability in last month\'s image was not known last month'),
+   ('Increasingly required', 'US Executive Order 14028, the EU Cyber Resilience Act, procurement questionnaires')],
+  'MODULE 7 §7.2'),
 
  ('predict', 'Which gate catches it?',
   'Five things are about to be committed. For each one, name the gate that catches it — and say '
@@ -39,22 +99,144 @@ DAY6 = [
    'A dependency with a CRITICAL CVE and no fix published anywhere',
    'A Kubernetes manifest with privileged: true',
    'A base image that was fine when built six months ago and now has 40 new CVEs'],
-  'Secret scan (FAIL, and rotate first) · SCA (FAIL) · SCA again (WARN — gating on the '
-  'unfixable teaches people to bypass the gate) · IaC scan (FAIL) · the scheduled re-scan, which '
-  'is why you store SBOMs and rebuild base images on a cadence.', 4),
+  'Secret scan (FAIL, and rotate first) · SCA (FAIL) · SCA again (WARN, with an owner and an expiry — gating on '
+  'the unfixable teaches people to bypass the gate) · IaC scan (FAIL) · the scheduled re-scan, which is why you '
+  'store SBOMs and rebuild base images on a cadence.', 4),
+
  ('diagram', 'The secure pipeline — and how to gate it', dg.secure_pipeline, 'MODULE 7 §7.3'),
+
+ ('table', 'Gating on risk — where teams get this wrong',
+  ['Finding', 'Action'],
+  [['A secret detected in code', '✗ Fail immediately. Rotate the secret. No exceptions'],
+   ['CRITICAL vulnerability, fix available', '✗ Fail the build'],
+   ['HIGH vulnerability, fix available', 'Fail on main and release branches; warn on feature branches'],
+   ['HIGH or CRITICAL, NO fix available', 'Warn, and record an accepted risk with an owner and an expiry date'],
+   ['MEDIUM or LOW', 'Report to a dashboard; fix in planned work'],
+   ['A known false positive', 'Suppress in the repo, with a reason, an owner and an expiry']],
+  'MODULE 7 §7.3', {'widths': [3.6, 6.4],
+   'note': ('WHY TIERED', 'Fail on everything and the pipeline is always red, so people bypass it. Fail on nothing and '
+            'the dashboard goes unread. Give newly published CVEs a grace period so a 02:00 disclosure does not block a 09:00 hotfix.')}),
+
+ ('table', 'Securing the pipeline itself',
+  ['Risk', 'Control'],
+  [['A malicious or compromised third-party Action or plugin', 'Pin uses: to a full commit SHA; review before adding; an allow-list'],
+   ['Dependency confusion and typosquatting', 'An internal package proxy; pinned, hash-checked lockfiles'],
+   ['Over-privileged pipeline credentials', 'A least-privilege permissions: block; short-lived OIDC tokens'],
+   ['Secrets leaking into logs', 'The platform secret store (masked); never echo a secret'],
+   ['Pull requests from forks stealing secrets', 'pull_request, not pull_request_target, for untrusted code'],
+   ['Tampered artefacts', 'Sign images (cosign) and verify signatures at admission'],
+   ['Self-hosted runner reuse', 'Ephemeral runners: one job per runner, isolated network'],
+   ['Unreviewed changes to the pipeline', 'Workflows and Jenkinsfile in CODEOWNERS, behind branch protection']],
+  'MODULE 7 §7.4', {'widths': [4.4, 5.6],
+   'note': ('THE CAUTIONARY TALES', 'SolarWinds, Codecov and the xz-utils backdoor: compromise of the pipeline is '
+            'compromise of production. The CI system holds credentials to everything and runs code by design.')}),
+
+ ('code', 'A workflow hardened for production',
+  '''permissions:
+  contents: read          # the default token can only read
+  id-token: write         # ...and may request an OIDC token
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    steps:
+      # a tag can be moved; a commit SHA cannot (this is v4.1.0)
+      - uses: actions/checkout@8ade135a41bc03ea155e62e844d188df1ea18608
+
+      # exchange the GitHub identity for a credential
+      # that lives for minutes, not months
+      - uses: some-cloud/login@<full-sha>
+        with:
+          role: arn-or-id-of-a-deploy-only-role''',
+  [('permissions: at the top', 'Everything not granted is denied to the automatic token'),
+   ('Pinned to a full SHA, with the tag as a comment', 'Dependabot can keep the SHAs current for you'),
+   ('id-token: write enables OIDC federation', 'No long-lived cloud secret stored anywhere'),
+   ('A deploy-only role', 'Least privilege: it can deploy, and nothing else')],
+  {'lang': '.github/workflows/deploy.yml', 'kicker': 'MODULE 7 §7.4', 'split': 0.60,
+   'speaker': 'The login step is a placeholder for whichever cloud you use — the shape is the same for all of them.'}),
 
  ('bullets', 'Secrets — the hierarchy, worst to best',
   [('✗✗✗ Hard-coded in source, or a committed .env', 'In git forever, in every clone and fork'),
    ('✗ Baked into a container image', 'docker history shows every ARG and ENV'),
-   ('~ CI/CD platform secrets', 'Encrypted, masked, scoped — an acceptable baseline'),
+   ('~ CI/CD platform secrets, Kubernetes Secrets', 'An acceptable baseline — with encryption at rest and RBAC'),
    ('✓ Sealed Secrets / SOPS', 'Encrypted in git; decryptable only in the target cluster'),
-   ('✓✓ External secret manager', 'Vault, cloud KMS, External Secrets Operator'),
+   ('✓✓ An external secret manager', 'Vault, cloud KMS, External Secrets Operator'),
    ('✓✓✓ Short-lived dynamic credentials', 'OIDC — a secret that does not exist long enough to steal')],
+  'MODULE 7 §7.5'),
+
+ ('flow', 'A secret was pushed. In this order:',
+  [('ROTATE it first', 'Assume it is compromised the moment it was pushed — public repositories are scraped within seconds'),
+   ('Check the access logs for use of the credential', 'Was it used, from where, and when?'),
+   ('Then remove it from history', 'git filter-repo or BFG — this rewrites history and never reaches existing clones, forks or CI caches'),
+   ('Make it impossible to recur', 'A pre-commit gitleaks hook AND a CI gate')],
   'MODULE 7 §7.5',
-  {'note': ('IF A SECRET IS COMMITTED', 'ROTATE IT FIRST — public repos are scraped within seconds. '
-            'Scrubbing history is cosmetic: it does not reach forks, existing clones or CI caches. '
-            'Teams routinely get this backwards and spend two days rewriting history without rotating the key.')}),
+  {'note': ('ROTATING IS MANDATORY; SCRUBBING HISTORY IS COSMETIC', 'Teams routinely get this backwards and spend two '
+            'days rewriting history without ever changing the key.')}),
+
+ ('code', 'Sealed Secrets — encrypted, and safe to commit',
+  '''$ kubectl create secret generic paytrack-db-secret \\
+    --namespace=paytrack-dev \\
+    --from-literal=POSTGRES_PASSWORD='...' \\
+    --dry-run=client -o yaml > /tmp/plain-secret.yaml
+
+$ kubeseal --controller-name=sealed-secrets-controller \\
+    --controller-namespace=kube-system \\
+    --format yaml < /tmp/plain-secret.yaml \\
+    > k8s/base/sealed-secret.yaml
+
+$ rm /tmp/plain-secret.yaml
+$ git add k8s/base/sealed-secret.yaml''',
+  [('--dry-run=client', 'Builds the Secret YAML without creating it in the cluster'),
+   ('kubeseal encrypts with the cluster\'s PUBLIC key', 'Only that cluster\'s controller holds the private key'),
+   ('The plaintext never persists', 'Deleted before anything reaches git'),
+   ('"Everything in git" and "no plaintext secrets in git"', 'Now both true — the GitOps-compatible answer')],
+  {'lang': 'bash', 'kicker': 'MODULE 7 §7.5 · LAB 17', 'split': 0.60}),
+
+ ('code', 'The securityContext to default to',
+  '''securityContext:                       # pod level
+  runAsNonRoot: true
+  runAsUser: 10001
+  fsGroup: 10001
+  seccompProfile: { type: RuntimeDefault }
+containers:
+  - name: paytrack-api
+    securityContext:                   # container level
+      allowPrivilegeEscalation: false
+      readOnlyRootFilesystem: true
+      capabilities: { drop: ["ALL"] }
+    resources:
+      requests: { cpu: 100m, memory: 128Mi }
+      limits:   { cpu: 500m, memory: 256Mi }''',
+  [('runAsNonRoot with a numeric UID', 'The kubelet can verify 10001 without reading /etc/passwd'),
+   ('No privilege escalation, no capabilities', 'setuid binaries and kernel capabilities are off the table'),
+   ('A read-only root filesystem', 'Add an emptyDir for the paths that must be writable'),
+   ('seccomp RuntimeDefault', 'Blocks the system calls containers almost never need'),
+   ('Limits are a security control', 'A compromised container cannot starve its neighbours')],
+  {'lang': 'k8s/base/deployment.yaml', 'kicker': 'MODULE 7 §7.6', 'split': 0.58}),
+
+ ('table', 'The Kubernetes controls that matter most',
+  ['Control', 'Purpose'],
+  [['RBAC, least privilege', 'No cluster-admin for applications; one ServiceAccount per workload'],
+   ['NetworkPolicy', 'Pod-to-pod traffic is unrestricted by default — start with default-deny per namespace'],
+   ['Pod Security Admission', 'Enforce the restricted profile per namespace'],
+   ['Admission policy (Kyverno, OPA Gatekeeper)', '"No :latest", "no privileged", "only our registry", "must have limits"'],
+   ['Encryption at rest for etcd', 'Otherwise Secrets are just base64 on a disk'],
+   ['Audit logging', 'Who did what to the API server, and when'],
+   ['automountServiceAccountToken: false', 'Do not hand every pod an API token it does not need'],
+   ['Never mount the Docker socket', 'Equivalent to root on the node']],
+  'MODULE 7 §7.6', {'widths': [3.8, 6.2],
+   'note': ('WHAT AUDITORS COMPARE YOU WITH', 'CIS Benchmarks for Docker and Kubernetes · OWASP Top 10 and the OWASP '
+            'Top 10 CI/CD Security Risks · SLSA for supply-chain integrity.')}),
+
+ ('bank', 'The regimes that shape a bank\'s pipeline',
+  [('PCI-DSS v4.0', 'Secure development, vulnerability remediation windows, no production card numbers in test'),
+   ('EU DORA — the Digital Operational Resilience Act', 'ICT risk management, incident reporting clocks, resilience testing, third-party ICT risk'),
+   ('Third-party ICT risk includes your CI vendor', 'Not only your cloud — the pipeline supplier is in scope too'),
+   ('GDPR', 'No personal data in logs or lower environments without a lawful basis'),
+   ('The cheapest PCI control is never accepting the data', 'PayTrack refuses a card number at the API edge rather than encrypting it')],
+  {'lead': 'Regulation does not dictate tools. It asks for controls that are designed, operating and evidenced — '
+           'and a pipeline generates that evidence on every change.',
+   'ref': 'Appendix A §A.2 · §A.6'}),
 
  ('lab', '17', 'Shift Security Left',
   'Add every class of gate — then plant real flaws and watch all five block your own merge.',
@@ -64,36 +246,111 @@ DAY6 = [
    'Remediate — and discuss why removing the file is NOT enough',
    'Generate an SBOM per build, and store it for re-scanning when new CVEs appear',
    'Replace the plaintext Secret with a SealedSecret that is safe to commit'],
-  'A pipeline with secret, SAST, SCA, IaC and image gates you have watched fire — plus an SBOM and sealed secrets'),
+  'A pipeline with secret, SAST, SCA, IaC and image gates you have watched fire — plus an SBOM and sealed secrets',
+  {'kicker': 'STARTED TOGETHER IN CLASS  ·  FINISH AFTER'}),
 
- ('section', '2', 'Observability', 'Knowing what your system is doing — and whether users are suffering',
-  ['Monitoring vs observability', 'The three pillars', 'RED and USE', 'SLOs and error budgets',
-   'Alerting that people do not ignore']),
+ ('section', '2', 'Observability', 'Knowing what your system is doing — and whether customers are suffering',
+  ['Monitoring vs observability', 'The three pillars and metric types', 'RED, USE and Prometheus',
+   'Structured logs', 'SLOs, burn-rate alerts and incidents']),
 
- ('diagram', 'The three pillars', dg.three_pillars, 'MODULE 8 §8.1'),
+ ('two', 'Monitoring vs observability',
+  ('MONITORING', ['Collects PREDEFINED metrics and logs',
+                  '"Is CPU above 80 %?" · "Did the error rate exceed 1 %?"',
+                  'Answers questions you thought of in advance',
+                  'KNOWN unknowns: dashboards and thresholds',
+                  '→ Necessary, and not sufficient'], 'teal'),
+  ('OBSERVABILITY', ['A PROPERTY of the system',
+                     'Understand internal state from external outputs',
+                     '"Why are Android users in one region slow, only 14:00–15:00?"',
+                     'UNKNOWN unknowns: explore without new code',
+                     '→ What distributed systems forced on us'], 'orange'),
+  'MODULE 8 §8.1',
+  ('YOU NEED BOTH', 'Monitoring tells you something is wrong; observability lets you find out what. OpenTelemetry is '
+   'the vendor-neutral standard for producing all three signals — instrument once, change backend freely.')),
+
+ ('diagram', 'The three pillars', dg.three_pillars, 'MODULE 8 §8.1',
+  {'speaker': 'The fourth thing that matters is the one most teams skip: a correlation or trace ID on every log line. '
+   'A log line without a trace ID is an orphan.'}),
+
+ ('table', 'Metric types',
+  ['Type', 'Definition', 'Examples'],
+  [['Counter', 'Only goes up (resets to 0 on restart)', 'requests_total, errors_total'],
+   ['Gauge', 'Goes up and down', 'memory_bytes, queue_depth, active_connections'],
+   ['Histogram', 'Observations in buckets, plus _sum and _count; quantiles computed at query time, aggregatable', '✔ Request duration, response size'],
+   ['Summary', 'Quantiles computed in the client', '✗ Avoid — you cannot aggregate them across instances']],
+  'MODULE 8 §8.2', {'widths': [1.8, 5.0, 3.4],
+   'note': ('NEVER AVERAGE A PERCENTILE', 'The mean of ten p95s is not the p95. Use histograms so Prometheus can compute '
+            'a true quantile across pods — and measure the latency of successful and failed requests separately.')}),
 
  ('table', 'Metrics that matter — pick a framework and use it',
   ['Framework', 'For', 'The metrics'],
   [['RED', 'Request-driven services — use this for PayTrack', 'Rate · Errors · Duration'],
-   ['USE', 'Resources: nodes, disks, pools', 'Utilisation · Saturation · Errors'],
+   ['USE', 'Resources: nodes, disks, connection pools', 'Utilisation · Saturation · Errors'],
    ['Four Golden Signals', 'Google SRE\'s formulation', 'Latency · Traffic · Errors · Saturation'],
-   ['BUSINESS metrics', 'Whether the service is doing its JOB', 'Decline rate · value declined · throughput']],
+   ['BUSINESS metrics', 'Whether the service is doing its JOB', 'Decline rate · value declined · authorisation throughput']],
   'MODULE 8 §8.2', {'widths': [2.6, 4.4, 4.0], 'emph': [3],
-   'note': ('NEVER AVERAGE A PERCENTILE', 'The mean of ten p95s is not the p95. Use histograms, not '
-            'summaries, so Prometheus can compute a true aggregate quantile across pods. This mistake '
-            'makes dashboards confidently wrong.')}),
+   'note': ('SATURATION', 'Queued work a resource could not service — usually the earliest warning signal you will get. '
+            'The failure is not choosing the wrong framework; it is having none.')}),
+
+ ('flow', 'How Prometheus works',
+  [('Service discovery finds the targets', 'In Kubernetes, pods and Services appear and vanish — Prometheus follows them'),
+   ('Prometheus PULLS /metrics over HTTP on an interval', 'The scrape is itself a health check: up is a free metric'),
+   ('Samples land in its time-series database', 'Every unique label combination is a separate series'),
+   ('Rules are evaluated continuously', 'Recording rules pre-compute; alerting rules fire'),
+   ('Alertmanager groups, inhibits, silences and routes', 'One node failure must not produce 200 pages'),
+   ('Grafana queries Prometheus for dashboards', 'Dashboards as JSON in git — never clicked together by hand')],
+  'MODULE 8 §8.3',
+  {'note': ('PUSH?', 'Only for short-lived batch jobs that die before a scrape — the Pushgateway exists for that, and only that.')}),
 
  ('bullets', 'Prometheus — the things that actually catch people out',
-  [('It PULLS over HTTP', 'So the scrape is itself a health check — up is a free metric'),
-   ('Every unique label COMBINATION is a separate time series', None),
-   ('CARDINALITY is the number-one way to destroy a Prometheus',
-    'Never label with a user id, request id, card number or full URL with parameters'),
+  [('CARDINALITY is the number-one way to destroy a Prometheus',
+    'Never label with a user ID, request ID, card number or full URL with parameters'),
+   ('endpoint="/api/v1/authorisations" is right', 'A path with an ID and a query string is a new series per request'),
    ('Always use rate() on a counter', 'A raw counter only goes up; rate() also handles restarts'),
    ('sum by (le) BEFORE histogram_quantile', 'Or you get NaN, or a meaningless number'),
    ('Recording rules pre-compute expensive queries', 'Dashboards and alerts then read a cheap series'),
    ('ServiceMonitor = monitoring as code', 'Adding a service to monitoring becomes a pull request')],
   'MODULE 8 §8.3'),
 
+ ('code', 'PromQL for PayTrack — RED in four queries',
+  '''# RATE: requests per second, over five minutes
+sum(rate(paytrack_http_requests_total[5m]))
+
+# ERRORS: the ratio of 5xx to all requests
+sum(rate(paytrack_http_requests_total{status=~"5.."}[5m]))
+  / sum(rate(paytrack_http_requests_total[5m]))
+
+# DURATION: p95 latency from the histogram
+histogram_quantile(0.95,
+  sum by (le) (rate(paytrack_http_request_duration_seconds_bucket[5m])))
+
+# Is the target being scraped at all?
+up{job="paytrack-api"}''',
+  [('rate() turns a counter into per-second', 'Averaged over the range, safe across restarts'),
+   ('Numerator and denominator aggregated the same way', 'Otherwise the ratio is nonsense'),
+   ('sum by (le) keeps the bucket boundaries', 'Then histogram_quantile computes a true p95'),
+   ('Add one business query', 'Declined authorisations ÷ all authorisations — the number customers feel')],
+  {'lang': 'PromQL', 'kicker': 'MODULE 8 §8.3 · LAB 18', 'split': 0.60}),
+
+ ('code', 'A log line an on-call engineer can use',
+  '''{"ts": "2026-09-07T09:14:22Z",
+ "level": "ERROR",
+ "service": "paytrack-api",
+ "version": "1.4.2",
+ "trace_id": "4f2b8c...",
+ "event": "ledger_write_failed",
+ "merchant": "NORTHGATE FUEL",
+ "currency": "GBP",
+ "card_last4": "4242",
+ "error": "connection timeout",
+ "duration_ms": 5031}''',
+  [('Structured JSON, to stdout', 'Every field is queryable; the platform collects it'),
+   ('A trace_id on every line', 'The only way to follow one request across services'),
+   ('Deliberately ABSENT: the card number, the name, the account', 'A PAN in a log is a PCI-DSS finding; a name beside a transaction is a GDPR one'),
+   ('Compare: "ERROR: something went wrong"', 'Which tells an on-call engineer nothing at 03:00')],
+  {'lang': 'structured log', 'kicker': 'MODULE 8 §8.4', 'split': 0.50,
+   'note': ('LOGGING RULES', 'Consistent levels · never log secrets or personal data · log every error, sample the successes · '
+            'hot, warm and cold retention tiers — logs are usually the largest observability cost. Loki suits a Prometheus shop.')}),
 
  ('discuss', 'Everything is green and nobody can pay',
   'It is 14:00. Every pod is healthy, latency is normal, there are zero 5xx errors, and every '
@@ -106,42 +363,116 @@ DAY6 = [
   'No technical alert fires, because nothing is technically wrong. Only a BUSINESS metric — '
   'decline rate, authorisation throughput, value declined — catches this. Every dashboard needs '
   'at least one metric that measures the job, not the machinery.', 5),
+
+ ('define', 'SLI, SLO, SLA and the error budget',
+  'An SLI measures service quality as good events ÷ valid events. An SLO is a target for an SLI over a window. '
+  'An SLA is a contract. The error budget is 100 % minus the SLO: the unreliability you are allowed to spend.',
+  [('SLI', 'The proportion of requests that succeed in under 300 ms'),
+   ('SLO', '99.5 % of requests succeed in under 300 ms, over 28 rolling days'),
+   ('SLA', 'A contract with financial consequences — always looser than the internal SLO'),
+   ('Error budget', 'At 99.5 % over 28 days: 0.5 %, about 3 hours 22 minutes of failure')],
+  'MODULE 8 §8.5'),
+
  ('diagram', 'SLIs, SLOs and the error budget', dg.error_budget, 'MODULE 8 §8.5'),
+
+ ('table', 'What each nine actually costs you in downtime',
+  ['SLO', 'Downtime per 30 days', 'Downtime per year'],
+  [['99 %', '7 h 12 min', '3.65 days'],
+   ['99.5 %', '3 h 36 min', '1.83 days'],
+   ['99.9 % — "three nines"', '43 min 12 s', '8.77 hours'],
+   ['99.95 %', '21 min 36 s', '4.38 hours'],
+   ['99.99 % — "four nines"', '4 min 19 s', '52.6 minutes'],
+   ['99.999 %', '26 s', '5.26 minutes']],
+  'MODULE 8 §8.5', {'widths': [3.4, 3.3, 3.3],
+   'note': ('DO NOT CHOOSE 99.99 % BY DEFAULT', 'Each nine multiplies cost, and users on a 99.9 % network cannot perceive '
+            'the difference. Pick the SLO from what users need — and keep it below 100 %, so taking risk is legitimate.')}),
 
  ('bullets', 'Alerting that survives contact with an on-call rota',
   [('Alert on SYMPTOMS, not causes', '"Error ratio > 2 %" beats "CPU > 80 %" — one hurts users, one may not'),
    ('Every alert must be actionable', 'If there is nothing to do, it is a dashboard entry, not a page'),
    ('Every alert needs a runbook link', '03:00 is not the time to reason from first principles'),
-   ('Alert on SLO BURN RATE, not raw thresholds', 'Ties urgency to actual budget consumption'),
-   ('Multi-window: long window says it is real, short window says it is still happening', None),
+   ('Page only for urgent, user-facing problems', 'Everything else is a ticket'),
+   ('Use for: durations, grouping and inhibition', 'No flapping, and one failure does not produce 200 pages'),
    ('Review alerts monthly and DELETE what nobody acted on',
-    'Alert fatigue is a safety failure, not an annoyance — 50 pages a night means missing the one that mattered')],
+    'Alert fatigue is a safety failure — 50 pages a night means missing the one that mattered')],
   'MODULE 8 §8.6'),
+
+ ('table', 'Multi-window, multi-burn-rate alerting',
+  ['Burn rate', 'Long window', 'Short window', 'Budget consumed', 'Action'],
+  [['14.4×', '1 hour', '5 minutes', '2 % in 1 hour', '✗ Page immediately'],
+   ['6×', '6 hours', '30 minutes', '5 % in 6 hours', 'Page'],
+   ['3×', '1 day', '2 hours', '10 % in 1 day', 'Ticket'],
+   ['1×', '3 days', '6 hours', '10 % in 3 days', 'Ticket']],
+  'MODULE 8 §8.6', {'widths': [1.6, 2.0, 2.0, 2.4, 2.2], 'emph': [0],
+   'note': ('BOTH WINDOWS MUST FIRE', 'The long window proves the problem is real; the short window proves it is still '
+            'happening — so the alert resolves when the problem does. Burn rate 1 spends exactly the whole budget in the window.')}),
+
+ ('code', 'The fast-burn alert, as Lab 18 writes it',
+  '''- alert: PayTrackAPIErrorBudgetFastBurn
+  expr: |
+    (
+      sum(rate(paytrack_http_requests_total{status=~"5.."}[1h]))
+        / clamp_min(sum(rate(paytrack_http_requests_total[1h])), 0.001)
+    ) > (14.4 * 0.005)
+    and
+    (
+      sum(rate(paytrack_http_requests_total{status=~"5.."}[5m]))
+        / clamp_min(sum(rate(paytrack_http_requests_total[5m])), 0.001)
+    ) > (14.4 * 0.005)
+  for: 2m
+  labels: { severity: critical }
+  annotations:
+    summary: "PayTrack API is burning its error budget 14.4x too fast"
+    runbook_url: ".../paytrack-api/blob/main/docs/runbooks/high-error-rate.md"''',
+  [('0.005 is the error budget', 'A 99.5 % SLO allows 0.5 % errors'),
+   ('14.4 × 0.005 = a 7.2 % error ratio', 'Sustained for an hour AND still true over five minutes'),
+   ('clamp_min avoids dividing by zero', 'A quiet service does not produce NaN or a false page'),
+   ('runbook_url on every alert', 'The page tells the engineer what to do first')],
+  {'lang': 'prometheus rule', 'kicker': 'MODULE 8 §8.6 · LAB 18', 'split': 0.66}),
 
  ('bank', 'Every technical metric green — and customers cannot pay',
   [('Pods healthy · latency fine · zero 5xx · all probes passing', 'And the decline rate has gone from 4 % to 40 %'),
    ('An upstream scheme link failing closed produces NO technical alert', 'The service is working perfectly. It is refusing everyone'),
-   ('paytrack_authorisations_total{status="declined"} / total', 'The single most important number on a card platform'),
+   ('paytrack_authorisations_total{status="declined"} ÷ total', 'The single most important number on a card platform'),
    ('"No authorisations for 10 minutes" is a SEV1', 'And no RED-based alert will fire — the service is simply idle'),
-   ('Value declined per second turns degraded into £4 200 a minute',
+   ('Value declined per second turns "degraded" into money per minute',
     'Which is the sentence that gets an incident the attention it needs')],
   {'lead': 'Technical metrics tell you the system is unwell. BUSINESS metrics tell you it matters. '
            'Put at least one of each on every dashboard.',
    'ref': 'Lab 18 · Module 8 §8.2'}),
+
+ ('flow', 'Incident response',
+  [('DETECT', 'An alert fires, or a report arrives — MTTD starts here'),
+   ('TRIAGE', 'Agree the severity, and name the Incident Commander'),
+   ('MITIGATE — restore service FIRST', 'Roll back, fail over, shed load, turn off the feature flag'),
+   ('RESOLVE', 'Fix the underlying cause — important, but not urgent once users are served'),
+   ('LEARN', 'A blameless post-mortem whose action items each have an owner and a date')],
+  'MODULE 8 §8.7',
+  {'note': ('ROLES AND SEVERITY', 'Incident Commander (coordinates, does not debug) · operations lead · communications lead · '
+            'scribe. Define SEV1–SEV4 in advance — arguing about severity during an incident wastes the first 15 minutes.')}),
 
  ('lab', '18', 'Monitoring, Dashboards, Alerts and an Incident',
   'Instrument it, watch it, define what "good" means — then break production and run the incident.',
   ['Install Prometheus, Grafana and Alertmanager; scrape PayTrack via a ServiceMonitor',
    'Write the RED queries in PromQL — plus decline rate and value declined',
    'Build a dashboard AS CODE and import it — dashboards belong in git, not clicked together',
-   'Define an SLO and write multi-window burn-rate alerts at 14.4× (page) and 6× (ticket)',
+   'Define an SLO and write burn-rate alerts: a fast burn at 14.4× and a slow burn at 6×',
    'INJECT A FAILURE, then detect → triage → diagnose → mitigate → verify → learn',
    'Write the runbook and the blameless post-mortem while it is fresh'],
   'A monitored platform with SLO alerts, a runbook, and one incident worked end to end'),
 
- ('section', '3', 'Enterprise DevOps', 'Governance, metrics, SRE and platform engineering',
-  ['DevOps governance in a regulated bank', 'DORA metrics revisited', 'SRE',
-   'Platform engineering', 'Scaling and anti-patterns']),
+ ('section', '3', 'Enterprise DevOps', 'Governance, metrics, SRE, platforms — and how it scales',
+  ['DevOps governance in a regulated bank', 'The two DORAs', 'SRE', 'Platform engineering',
+   'Scaling, and what comes next']),
+
+ ('define', 'DevOps governance',
+  'The set of controls that keep delivery compliant, secure and auditable WITHOUT reintroducing the manual gates '
+  'DevOps removed — in practice, replacing document-and-approval controls with automated, evidenced ones.',
+  [('The control moves INTO the pipeline', 'Applied to 100 % of changes, not the ones that reached the CAB agenda'),
+   ('Policy as code', 'Rules in a machine-evaluable form — OPA/Rego, Kyverno, Conftest — versioned and reviewed'),
+   ('The argument for a risk officer', 'An automatic control on every change is stronger than a committee on a sample'),
+   ('Do not try to abolish the CAB', 'Ask for ONE low-risk service to become an ITIL standard change, then bring back the numbers')],
+  'MODULE 9 §9.1'),
 
  ('diagram', 'Segregation of duties — the argument to take to Risk', dg.sod_control,
   'APPENDIX A §A.3'),
@@ -151,39 +482,85 @@ DAY6 = [
   [['Segregation of duties', 'A release team deploys', 'PR review; self-approval blocked', 'PR record, protection config'],
    ['Change authorisation', 'Weekly CAB', 'Peer review + automated gates', 'Merge commit, CI run'],
    ['Change testing', 'Manual sign-off', 'Automated suite gating the merge', 'Test results, coverage'],
-   ['Vulnerability mgmt', 'Quarterly scan report', 'Every build scanned, risk-tiered gates', 'Scan output, SBOM'],
+   ['Vulnerability management', 'Quarterly scan report', 'Every build scanned, risk-tiered gates', 'Scan output, SBOM'],
    ['Access control', 'Standing admin accounts', 'Least-privilege RBAC, short-lived OIDC', 'RBAC in git, token audit'],
-   ['Config management', 'A manual CMDB', 'Git is the source of truth', 'plan -detailed-exitcode']],
-  'APPENDIX A §A.9', {'widths': [2.6, 2.6, 3.2, 3.1]}),
+   ['Configuration management', 'A manual CMDB', 'Git is the source of truth', 'Scheduled drift detection'],
+   ['Audit evidence', 'Screenshots before the audit', 'Immutable pipeline logs, signed artefacts', 'Generated on every change']],
+  'APPENDIX A §A.9', {'widths': [2.6, 2.5, 3.2, 2.8]}),
 
  ('bullets', 'The two DORAs — and why the collision is useful',
-  [('DORA the METRICS', 'DevOps Research and Assessment: deploy frequency, lead time, change failure rate, recovery time'),
-   ('DORA the REGULATION', 'EU Digital Operational Resilience Act — applying since 17 January 2025'),
+  [('DORA the METRICS', 'DevOps Research and Assessment: deployment frequency, lead time, change failure rate, recovery time'),
+   ('DORA the REGULATION', 'The EU Digital Operational Resilience Act — applying since 17 January 2025'),
    ('Unrelated origins. Aligned in substance', None),
    ('Change failure rate and recovery time ARE measures of operational resilience',
     'So your DevOps metrics are resilience evidence — a strong card to play with your risk function'),
-   ('DORA the regulation also covers ICT THIRD-PARTY risk',
-    'Which includes your cloud provider and your CI vendor'),
-   ('And incident reporting on regulatory clocks', 'Which is why MTTD and MTTR stop being engineering trivia')],
-  'MODULE 9 §9.2 · APPENDIX A §A.2'),
+   ('The regulation also covers ICT THIRD-PARTY risk', 'Which includes your cloud provider and your CI vendor'),
+   ('And incident reporting on regulatory clocks', 'Which is why detection and recovery times stop being engineering trivia')],
+  'MODULE 9 §9.1 · APPENDIX A §A.2'),
 
- ('two', 'SRE and platform engineering — what to steal',
-  ('SRE', ['Reliability quantified: SLIs, SLOs, error budgets',
-           'An error-budget POLICY with agreed consequences',
-           'Toil capped at 50 % of an engineer\'s time',
-           'Blameless post-mortems with owned actions',
-           'Production readiness review before support'], 'teal'),
-  ('PLATFORM ENGINEERING', ['The platform is a PRODUCT with users and a roadmap',
-                            'Golden paths, not golden cages',
-                            'Self-service — a ticket-and-wait platform is ops renamed',
-                            'Reduce cognitive load, do not relocate it',
-                            'Voluntary adoption is the only honest metric'], 'green'),
-  'MODULE 9 §9.3–9.4',
-  ('THE TEST FOR EACH', 'SRE without a written error-budget policy is monitoring with extra vocabulary. '
-   'A platform teams must be mandated to use is a golden cage, and they will route around it.')),
+ ('table', 'Measuring the four DORA metrics without buying anything',
+  ['Metric', 'Where the number comes from'],
+  [['Deployment frequency', 'Count successful production deployment pipeline runs'],
+   ['Lead time for change', 'Deploy timestamp − commit timestamp of the earliest commit in that deploy'],
+   ['Change failure rate', '(Incidents linked to a deploy + rollbacks) ÷ total deploys'],
+   ['Failed-deployment recovery time', 'Incident start → service restored, from your incident tracker']],
+  'MODULE 9 §9.2', {'widths': [3.4, 6.6],
+   'note': ('HOW THEY GET MISUSED', 'Ranking teams against each other · making deployment frequency a target · measuring '
+            'individuals · reporting speed without stability. Trend ONE team over time; always pair speed with stability.')}),
+
+ ('table', 'DevOps and SRE',
+  ['', 'DevOps', 'SRE'],
+  [['Nature', 'A movement and a set of principles', 'A specific, prescriptive implementation'],
+   ['Origin', 'The community, 2009', 'Google, around 2003'],
+   ['Reliability', '"Important"', 'Quantified: SLIs, SLOs and error budgets'],
+   ['Operations work', '"Automate it"', 'Toil capped at 50 % of an SRE\'s time, by policy'],
+   ['Failure', 'Blameless learning', 'Blameless learning + an error-budget policy with teeth']],
+  'MODULE 9 §9.3', {'widths': [2.2, 3.8, 4.2],
+   'note': ('"class SRE implements interface DevOps"', 'SRE is what happens when you ask a software engineer to design an '
+            'operations team (Ben Treynor Sloss). Without a written error-budget policy it is monitoring with extra vocabulary.')}),
+
+ ('table', 'SRE practices worth stealing — even without an SRE team',
+  ['Practice', 'What it means'],
+  [['SLO-driven decisions', 'Reliability targets set from user need, not ambition'],
+   ['An error budget policy', 'An AGREED, WRITTEN consequence for exhausting the budget, such as a feature freeze'],
+   ['A toil budget', 'Manual, repetitive, automatable work capped at 50 % — the rest is engineering'],
+   ['Production readiness review', 'A checklist a service must pass before it is supported'],
+   ['Graduated engagement', 'Support is earned by meeting standards, and can be handed back'],
+   ['Game days and chaos engineering', 'Inject failure deliberately to validate resilience and runbooks'],
+   ['Capacity planning from demand models', 'Forecast rather than react']],
+  'MODULE 9 §9.3', {'widths': [3.4, 6.6]}),
 
  ('diagram', 'Platform engineering — the problem it solves', dg.platform_engineering,
+  'MODULE 9 §9.4',
+  {'speaker': '"You build it, you run it" succeeded — then asked every developer to master Kubernetes, Terraform, '
+   'Prometheus, CI/CD and security. The results were shadow ops, inconsistency and burnout. Platforms are the answer.'}),
+
+ ('bullets', 'Platform engineering principles',
+  [('Treat the platform as a PRODUCT', 'Its users are developers: a roadmap, a backlog, documentation, satisfaction metrics'),
+   ('Golden paths, not golden cages', 'Make the paved road the easiest route, and allow escape hatches'),
+   ('Self-service', 'If a developer must raise a ticket and wait, it is the old ops team with a new name'),
+   ('Reduce cognitive load — do not relocate it', 'A bespoke language to avoid learning Kubernetes has moved the problem'),
+   ('Measure voluntary adoption', 'The only honest success signal — a mandated platform gets routed around')],
   'MODULE 9 §9.4'),
+
+ ('flow', 'Scaling DevOps across an organisation',
+  [('PILOT — one motivated team, a real workload', 'Measure the DORA baseline first, and prove value with numbers'),
+   ('EXPAND — three to five teams', 'Extract the patterns; enabling-team coaches; reusable pipeline templates'),
+   ('SCALE — a platform team and golden paths', 'Communities of practice; governance as code'),
+   ('EMBED — the default way of working', 'Continuous improvement; new teams onboard in days')],
+  'MODULE 9 §9.6',
+  {'note': ('WHAT DOES NOT WORK', 'A two-year transformation programme with no shipped software · buying a toolchain and '
+            'declaring victory · mandating adoption without removing the friction · renaming Ops to "SRE" or "Platform".')}),
+
+ ('table', 'What comes next',
+  ['Trend', 'Why it matters'],
+  [['AI-assisted DevOps', 'Real productivity gains — and DORA\'s finding that AI AMPLIFIES your delivery system, good or bad'],
+   ['Progressive delivery', 'Canary and blue-green automated by controllers, with metric-driven promotion and abort'],
+   ['Supply-chain security (SLSA, sigstore)', 'Provenance, signing and SBOMs becoming regulatory and procurement requirements'],
+   ['eBPF-based observability and security', 'Kernel-level visibility with no code changes and near-zero overhead'],
+   ['Platform engineering', 'The mainstream answer to cognitive overload'],
+   ['FinOps', 'Cloud cost as a first-class engineering metric, per team and per service']],
+  'MODULE 9 §9.8', {'widths': [3.6, 6.4]}),
 
  ('lab', '19', 'Capstone — Verify, Break, Recover, Plan',
   'Prove the whole chain works, run a game day against the clock, then write the plan you take home.',
@@ -193,12 +570,11 @@ DAY6 = [
    'Diagnose using only your dashboards, alerts and runbooks — and record the clock times',
    'Reset, then write your 30-60-90 day plan against your own Lab 01 baseline',
    'Name three anti-patterns you have, and the first step out of each'],
-  'A verified platform, a measured MTTR, and a written improvement plan with owners and dates'),
-
+  'A verified platform, a measured recovery time, and a written improvement plan with owners and dates'),
 
  ('audit', 'What will you actually change?',
-  'Before the capstone, commit to one thing. The test is simple: it needs no budget, no new '
-  'headcount and no permission from outside your team.',
+  'Commit to one thing. The test is simple: it needs no budget, no new headcount and no permission from '
+  'outside your team.',
   ['Name the ONE change you will make in the next 30 days.',
    'Name the number it should move — and where that number comes from today.',
    'Name the person who owns it. (If that is you, say so out loud.)',
@@ -207,19 +583,34 @@ DAY6 = [
   'Evidence moves risk functions; arguments do not. Pick one low-risk service, run the new way '
   'for a quarter, and bring the DORA numbers back. That is how a standard-change reclassification '
   'gets approved — and how the second team gets permission.', 5),
+
+ ('table', 'Day 6 key terms',
+  ['Term', 'Definition'],
+  [['DevSecOps / shift left', 'Security continuous and automated across the lifecycle / moved earlier'],
+   ['SAST / SCA / DAST', 'Static code / dependency / running-application analysis'],
+   ['SBOM', 'A machine-readable inventory of every component (SPDX, CycloneDX)'],
+   ['OIDC federation', 'A short-lived identity token swapped for credentials — no long-lived secret'],
+   ['Sealed Secret', 'A secret only the target cluster can decrypt; safe in git'],
+   ['Monitoring / observability', 'Predefined checks / answering new questions from outputs'],
+   ['Cardinality', 'The number of distinct label combinations — the main Prometheus scaling risk'],
+   ['SLI / SLO / error budget', 'A measure / a target / the unreliability you may spend'],
+   ['Burn rate', 'How fast the error budget is being consumed'],
+   ['Toil / platform engineering', 'Manual repetitive work / a self-service internal platform as a product']],
+  'REFERENCE', {'widths': [3.2, 6.8]}),
+
  ('check', 'Day 6 — check your understanding',
   ['An API key was committed and pushed to a public repo 20 minutes ago. List your actions in order.',
    'Why is failing the build on every MEDIUM finding usually counter-productive? What do you do instead?',
-   'Your team gets 60 pages a night. Give four concrete changes, in priority order.',
+   'uses: some-org/deploy@main — state the risk and the fix in one sentence each.',
+   'Your dashboard averages p95 latency across 12 pods. Why is this wrong, and what is right?',
    'Explain multi-window burn-rate alerting, and why BOTH windows are needed.',
-   'A director asks you to publish a DORA league table ranking all 14 teams. What is your response?',
-   'Which single practice makes SRE more than a rename of Operations?']),
+   'A director asks you to publish a DORA league table ranking all 14 teams. What is your response?']),
 
  ('close', 6, 'Course complete',
   ['Day 1–2: a governed repository where 100 % of changes are reviewed and automatically tested',
-   'Day 3–4: a hardened 150 MB image running on a self-healing Kubernetes cluster',
-   'Day 5: two environments from one Terraform module, and a GitOps pipeline with auto-rollback',
-   'Day 6: five security gates, an SBOM, sealed secrets, SLO alerting and a worked incident',
+   'Day 3–4: a hardened, non-root image under 200 MB running on a self-healing Kubernetes cluster',
+   'Day 5: environments from one Terraform module, and a GitOps pipeline with automatic rollback',
+   'Day 6: security gates, an SBOM, sealed secrets, SLO alerting and a worked incident',
    'All of it on a laptop, at zero cost, in a git repository you can clone and reproduce'],
   'Start with your Lab 01 constraint, not with the most interesting technology. Pick the one '
   'improvement that needs no budget and no permission outside your team, do it this month, and measure '

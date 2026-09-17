@@ -26,11 +26,19 @@ collaborators, branch protection on public repositories.
 
 🔁 **RECOVER — if Lab 02 is incomplete**
 ```bash
-cd ~/devops-course && rm -rf paytrack-api
+mkdir -p ~/devops-course && cd ~/devops-course && rm -rf paytrack-api
 git clone https://github.com/kumbulanit/devops_professional.git course-material 2>/dev/null || true
-mkdir -p paytrack-api && cp -r course-material/app paytrack-api/app && cd paytrack-api
+mkdir -p paytrack-api/docs && cp -r course-material/app paytrack-api/app && cd paytrack-api
+printf '# Value Stream Map\n\nTODO: complete in Lab 01.\n' > docs/value-stream.md
+printf '__pycache__/\n.venv/\n.pytest_cache/\n.coverage\n.env\n*.pem\n*.key\n*.tfstate\n' > .gitignore
 git init && git add . && git commit -m "feat: add PayTrack API service"
+git tag -a v1.0.0 -m "PayTrack API 1.0.0 — initial service"
 ```
+**What this does:** rebuilds what Lab 02 would have left you — the application, a `docs/`
+directory (Part 6 writes into it), a `.gitignore` written **before** the first commit so no virtual
+environment or secret is ever committed, and the annotated `v1.0.0` tag that Step 1.2 pushes.
+⚠️ `rm -rf paytrack-api` deletes any earlier attempt, including your Lab 01 notes — copy
+`docs/` somewhere else first if you want to keep them.
 
 ---
 
@@ -44,9 +52,9 @@ Decide now, and write it down:
 | **Contributor A** | | Adds a feature on a branch |
 | **Contributor B** | | Adds a *different* feature that touches the **same lines** — creating the conflict |
 
-Working alone? Do all three roles yourself, using a second clone in
-`~/devops-course/paytrack-api-b` to play Contributor B. You lose the review conversation but
-keep every mechanic.
+Working alone? Do all three roles yourself, in the one clone the steps use
+(`~/devops-course/paytrack-api-team`). Contributor B's steps start by switching back to `main`, so
+the two branches stay separate. You lose the review conversation but keep every mechanic.
 
 ---
 
@@ -88,9 +96,12 @@ local `main` (`-u`). From now on bare `git push` and `git pull` know where to go
 `git status` can tell you "ahead by 2 commits". **Tags are not pushed automatically** — the
 second command pushes `v1.0.0` explicitly.
 
-> ⚠️ **Authentication.** GitHub does not accept account passwords over HTTPS. When prompted,
-> use a **Personal Access Token** (Settings → Developer settings → Personal access tokens →
-> Fine-grained → repo access, `Contents: read & write`). Cache it so you type it once:
+> ⚠️ **Authentication.** GitHub does not accept account passwords over HTTPS. If you did
+> **Lab 00 Step 8.1** (`gh auth login … --scopes workflow`), git is already signed in — skip this box.
+> Otherwise use a **Personal Access Token** (Settings → Developer settings → Personal access tokens →
+> Fine-grained → repository access to `paytrack-api`, permissions **`Contents: Read and write`** and
+> **`Workflows: Read and write`** — Lab 04 cannot push `.github/workflows/` without the second).
+> Cache it so you type it once:
 > ```bash
 > git config --global credential.helper "cache --timeout=28800"
 > ```
@@ -123,7 +134,7 @@ rule*), branch name pattern `main`:
 | ☑ Require approvals | **1** | Unreviewed code reaching the mainline |
 | ☑ Dismiss stale approvals when new commits are pushed | on | Approving v1 and silently merging v3 |
 | ☑ Require conversation resolution before merging | on | Merging with open review comments |
-| ☑ Require status checks to pass | on *(add `ci / test` after Lab 04)* | Merging a red build |
+| ☑ Require status checks to pass | on *(add `CI passed` after Lab 04)* | Merging a red build |
 | ☑ Require branches to be up to date before merging | on | "It passed on my branch" against a stale base |
 | ☐ Allow force pushes | **off** | History rewrites on a shared branch |
 | ☐ Allow deletions | **off** | Deleting `main` |
@@ -168,24 +179,25 @@ cd paytrack-api-team
 **What this does:** `clone` creates the directory, fetches all history, checks out `main` and
 configures `origin` in one step.
 
-**Contributor A:**
+**Contributor A** — create your branch now:
 ```bash
 git switch -c feature/PAY-101-add-uptime-field
-```
-**Contributor B:**
-```bash
-git switch -c feature/PAY-102-add-region-field
 ```
 **What this does:** `git switch -c` creates a branch at the current commit and checks it out.
 (`git checkout -b` is the older equivalent; `switch` and `restore` were introduced to split
 checkout's overloaded jobs into two clear commands.) The name encodes the **type**, the
-**ticket** and a short description — the convention from Module 2 §2.3.
+**ticket** and a short description — the convention from Module 2 §2.4.
+
+**Contributor B** — do **not** create your branch yet. You create it in Step 3.2, straight after
+pulling the latest `main`. (Creating it here as well makes Step 3.2's `git switch -c` fail with
+*a branch named … already exists*, and your commit then lands on `main` instead of your branch.)
 
 ```bash
 git branch -vv
 ```
-**What this does:** lists local branches with their upstream and the last commit. Your new
-branch has no upstream yet — it exists only on your machine.
+**What this does:** lists local branches with their upstream and the last commit. Contributor A
+sees the new branch with no upstream yet — it exists only on their machine. Contributor B sees only
+`main`, tracking `origin/main`.
 
 ### Step 3.2 — Both make a change to the *same lines*
 
@@ -219,11 +231,26 @@ add a line"). It records process start time and returns uptime from `/api/v1/inf
 `git diff` shows the result before you stage it.
 
 ```bash
-cd app && source .venv/bin/activate 2>/dev/null || (python3 -m venv .venv && source .venv/bin/activate && pip install -q -r requirements-dev.txt)
-pytest -q && cd ..
+cd ~/devops-course/paytrack-api-team/app
+[ -d .venv ] || python3 -m venv .venv
+source .venv/bin/activate
+pip install -q -r requirements-dev.txt
+pytest
+cd ~/devops-course/paytrack-api-team
 ```
-**What this does:** activates the venv (creating it if this is a fresh clone) and runs the
-tests. **Never push a red branch** — you are about to ask a colleague for their time.
+**What this does, line by line:**
+- `[ -d .venv ] || python3 -m venv .venv` — creates the virtual environment only if it is not
+  there yet. This is a **fresh clone**, so it never is: `.venv/` is in `.gitignore`, so it is never
+  pushed and never cloned.
+- `source .venv/bin/activate` — activates it **in your current shell**. (It must be a line of its
+  own: activating inside `( … )` happens in a subshell and is thrown away the moment the subshell
+  ends, so `pytest` would then be *command not found*.)
+- `pip install -q -r requirements-dev.txt` — installs the pinned tools; on a second run it only
+  checks, so it is quick.
+- `pytest` — runs the suite (`pytest.ini` already adds `-q`). Expect `19 passed`. **Never push a
+  red branch** — you are about to ask a colleague for their time.
+- `cd ~/devops-course/paytrack-api-team` — back to the repository root, **even if the tests
+  failed**, because the next commands use paths like `app/src/app.py` that only work from there.
 
 ```bash
 git add app/src/app.py
@@ -250,10 +277,35 @@ s = s.replace(
     '            host=os.getenv("HOSTNAME", "localhost"),\n'
     '            region=config.REGION,\n        )'
 )
-assert "region=config.REGION" in s, "patch did not apply - is app/src/app.py unmodified?"
+# The HTML banner already passes region=config.REGION, so after the patch there must be TWO.
+assert s.count("region=config.REGION") == 2, "patch did not apply - is app/src/app.py unmodified?"
 p.write_text(s)
 print("patched app.py for PAY-102")
 PY
+git diff --stat
+```
+**What this does:** `git switch main && git pull` first, so B branches from the current `main`,
+then `git switch -c` creates B's branch — the only place B creates it. The script adds `region` to
+the JSON returned by `/api/v1/info`. Both contributors have now modified **the same lines** of
+`app.py` — the classic conflict. The `assert` counts occurrences because the HTML banner already
+contains `region=config.REGION`; checking for "is it in the file?" would pass even if the patch
+had failed.
+
+Run the tests exactly as Contributor A did — in B's own clone the virtual environment does not
+exist yet, and this creates it:
+```bash
+cd ~/devops-course/paytrack-api-team/app
+[ -d .venv ] || python3 -m venv .venv
+source .venv/bin/activate
+pip install -q -r requirements-dev.txt
+pytest
+cd ~/devops-course/paytrack-api-team
+```
+**What this does:** the same five steps as for Contributor A — create the venv if it is missing,
+activate it in this shell, install, test (expect `19 passed`), and return to the repository root
+whatever the result.
+
+```bash
 git add app/src/app.py
 git commit -m "feat(api): expose deployment region in /api/v1/info
 
@@ -262,19 +314,17 @@ identify which region answered a request, for both incident triage and the
 residency evidence Compliance asks for."
 git push -u origin feature/PAY-102-add-region-field
 ```
-**What this does:** `git pull` first, so B branches from the current `main`. Both contributors
-have now modified **the same two lines** of `app.py` — the classic conflict.
+**What this does:** stages only the file B changed, commits with a message that records **why**
+(data residency), and publishes the branch with `-u` so later pushes are a bare `git push`.
 
 ### Step 3.3 — Open the pull requests
 
 On GitHub, **Pull requests → New pull request** for each branch, base `main`.
 
-Write a real description. Add this template to the repository so it appears automatically
-next time:
+Write a real description. Use these headings — in Part 5 you commit them as a **pull request
+template**, so GitHub pre-fills every later PR with them:
 
-```bash
-mkdir -p .github
-cat > .github/pull_request_template.md <<'EOF'
+```markdown
 ## What
 <One paragraph: what changes, in plain language.>
 
@@ -293,11 +343,11 @@ cat > .github/pull_request_template.md <<'EOF'
 - [ ] `pytest` passes locally
 - [ ] No secrets, keys or credentials in the diff
 - [ ] Documentation updated if behaviour changed
-EOF
 ```
-**What this does:** GitHub pre-fills every new PR body from this file. A template raises the
-floor on description quality without anyone having to nag — the cheapest process improvement
-available to a team.
+
+> Why not create the template file now? You are on your feature branch. A file created here but
+> never committed stays behind as an untracked file, follows you from branch to branch, and gets
+> swept into the next `git add -A` — Lab 04 would commit it into a branch that is then deleted.
 
 ### Step 3.4 — The Maintainer reviews and merges PR #1
 
@@ -351,7 +401,7 @@ line numbers (`-n`).
 
 ```python
 <<<<<<< HEAD                                   ← YOUR branch (PAY-102)
-            region=os.getenv("APP_REGION", "local"),
+            region=config.REGION,
 =======                                        ← divider
             uptime_seconds=round(time.perf_counter() - _STARTED, 1),
 >>>>>>> origin/main                            ← THEIR change, already on main
@@ -367,7 +417,7 @@ import pathlib, re
 p = pathlib.Path("app/src/app.py")
 s = p.read_text()
 resolved = (
-    '            region=os.getenv("APP_REGION", "local"),\n'
+    '            region=config.REGION,\n'
     '            uptime_seconds=round(time.perf_counter() - _STARTED, 1),\n'
 )
 s = re.sub(r'<<<<<<< HEAD\n.*?=======\n.*?>>>>>>> [^\n]*\n', resolved, s, flags=re.S)
@@ -380,10 +430,18 @@ grep -c '<<<<<<<' app/src/app.py
 lines. The `grep -c` must print **0**: any remaining marker is a syntax error that will ship.
 
 ```bash
-cd app && source .venv/bin/activate && pytest -q && cd ..
+cd ~/devops-course/paytrack-api-team/app
+[ -d .venv ] || python3 -m venv .venv
+source .venv/bin/activate
+pip install -q -r requirements-dev.txt
+pytest
+cd ~/devops-course/paytrack-api-team
 ```
 **What this does:** **always run the tests after resolving a conflict.** A resolution that
-merges cleanly can still be semantically wrong; the test suite is what catches it.
+merges cleanly can still be semantically wrong; the test suite is what catches it. The block is
+written so it works in any clone — it creates the virtual environment if this clone does not have
+one yet — and it always returns you to the repository root, because `git add app/src/app.py` below
+only works from there. Expect `19 passed`.
 
 ```bash
 git add app/src/app.py
@@ -401,20 +459,67 @@ Approve and **Squash and merge** on GitHub.
 ✅ **Checkpoint**
 ```bash
 git switch main && git pull
-curl -s -o /dev/null -w '' localhost:8080 2>/dev/null
 grep -n 'region=\|uptime_seconds=' app/src/app.py
 git log --oneline --graph -6
 ```
-Both fields are present on `main`, and the history shows two clean squashed commits.
+**What this does:** updates your local `main` to the merged result, prints every line that sets
+`region` or `uptime_seconds` (with its line number), and draws the recent history. Expect:
+
+```
+160:            region=config.REGION,
+185:            region=config.REGION,
+186:            uptime_seconds=round(time.perf_counter() - _STARTED, 1),
+```
+
+The first `region` line is the HTML banner, which always had it. The last two are the resolution
+inside `/api/v1/info`: **both** fields, side by side. The history shows the two squashed
+pull-request commits, `(#1)` and `(#2)`, on top of Lab 02's work.
 
 ---
 
-## Part 5 — CODEOWNERS (5 min)
+## Part 5 — Pull request template and CODEOWNERS (5 min)
+
+Start from the up-to-date `main` you pulled in Step 4.4, on a branch of its own:
 
 ```bash
-git switch -c chore/add-codeowners
+cd ~/devops-course/paytrack-api-team
+git switch main && git pull
+git switch -c chore/add-pr-template-and-codeowners
+mkdir -p .github
+```
+**What this does:** makes sure the branch starts from the latest `main` (both feature PRs are in
+it), creates the branch, and creates `.github/` — the directory GitHub reads repository
+configuration from. `-p` makes `mkdir` a no-op if the directory already exists.
+
+```bash
+cat > .github/pull_request_template.md <<'EOF'
+## What
+<One paragraph: what changes, in plain language.>
+
+## Why
+<The problem this solves. Link the ticket.>
+
+## How to verify
+<Paste the exact commands a reviewer can run to see this working.>
+
+## Risk & rollback
+- Risk level: low / medium / high
+- Rollback: <how to undo this if it misbehaves in production>
+
+## Checklist
+- [ ] Tests added or updated
+- [ ] `pytest` passes locally
+- [ ] No secrets, keys or credentials in the diff
+- [ ] Documentation updated if behaviour changed
+EOF
+```
+**What this does:** writes the headings you used in Step 3.3 into the file GitHub uses to pre-fill
+the body of **every new pull request**. A template raises the floor on description quality without
+anyone having to nag — the cheapest process improvement available to a team.
+
+```bash
 cat > .github/CODEOWNERS <<'EOF'
-# Every path matches the LAST matching rule, so order matters (unlike .gitignore).
+# The LAST matching rule wins, so put the broad default first and specific paths after it.
 
 # Default owner for everything
 *                       @<maintainer-username>
@@ -427,12 +532,13 @@ cat > .github/CODEOWNERS <<'EOF'
 /k8s/                   @<maintainer-username>
 /terraform/             @<maintainer-username>
 EOF
-git add .github/CODEOWNERS
-git commit -m "chore: add CODEOWNERS for automatic review routing"
-git push -u origin chore/add-codeowners
+git add .github/pull_request_template.md .github/CODEOWNERS
+git commit -m "chore: add a pull request template and CODEOWNERS"
+git push -u origin chore/add-pr-template-and-codeowners
 ```
 **What this does:** GitHub reads `CODEOWNERS` and automatically requests review from the
-matching owners on every PR. **The pipeline and deployment paths are the important entries:**
+matching owners on every PR. Both files are staged **by name** and committed together, so nothing
+else in the working tree can slip into the commit. **The pipeline and deployment paths are the important entries:**
 a change to `.github/workflows/` can exfiltrate every secret in the repository, so it deserves
 stricter review than a change to a stylesheet. Enable *Require review from Code Owners* in the
 branch protection rule to enforce it.
@@ -452,8 +558,9 @@ picture.**
 Each team member, in their own clone:
 
 ```bash
-cd ~/devops-course/paytrack-api-team
+cd ~/devops-course/paytrack-api-team 2>/dev/null || cd ~/devops-course/paytrack-api
 git switch main && git pull
+mkdir -p docs
 SLUG=$(git config user.name | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' '-' | sed 's/^-//; s/-$//')
 git switch -c "demo/${SLUG:-delegate}-graph"
 echo "- $(git config user.name) was here at $(date +%H:%M)" >> docs/team-log.md
@@ -461,7 +568,10 @@ git add docs/team-log.md
 git commit -m "docs: add my line to the team log"
 git push -u origin HEAD
 ```
-**What this does:** builds a safe branch name from your git `user.name` — lowercased
+**What this does:** the first line goes to your clone — contributors cloned
+`paytrack-api-team` in Step 3.1, while the Maintainer's clone is the original `paytrack-api` from
+Lab 02, so it falls back to that. `mkdir -p docs` makes sure the directory exists (a no-op if it
+does). Then it builds a safe branch name from your git `user.name` — lowercased
 (`tr '[:upper:]' '[:lower:]'`), with every run of non-alphanumeric characters collapsed to a
 single hyphen (`tr -cs 'a-z0-9' '-'`, so spaces, apostrophes and accents cannot produce an
 awkward branch name), and leading/trailing hyphens trimmed. `${SLUG:-delegate}` falls back to
@@ -566,8 +676,11 @@ reference. Refresh the Network graph — the lines are gone.
 1. **Rebase instead of merge.** On a new branch, `git fetch && git rebase origin/main`.
    Compare the resulting history with the merge you did in Part 4. Then read Module 2 §2.5
    and explain why you would never do this to a branch a colleague has pulled.
-2. **`git bisect`.** Introduce a bug, commit ten times, then use
-   `git bisect start / bad / good <sha>` to find the breaking commit in log₂(n) steps.
+   **[Lab 03A](../lab-03a-git-going-further/README.md) Part 7** walks through merge versus rebase,
+   a rebase conflict and interactive rebase step by step, and Part 8 shows what force-pushing does to
+   a colleague.
+2. **`git bisect`.** [Lab 03A](../lab-03a-git-going-further/README.md) Part 5 gives you a practice
+   repository with a hidden bug, and finds it with `git bisect run` in three steps.
 3. **Signed commits.** `git config --global commit.gpgsign true` with an SSH signing key, and
    turn on *Require signed commits* in branch protection.
 
@@ -580,7 +693,9 @@ CODEOWNERS, two merged pull requests and one professionally resolved merge confl
 shared **Network graph** in which every delegate can see their own branch alongside everyone
 else's. This is the repository every remaining lab pushes to.
 
-**Next:** [Lab 04 — GitHub Actions CI](../lab-04-github-actions-ci/README.md)
+**Next:** [Lab 04 — GitHub Actions CI](../lab-04-github-actions-ci/README.md) ·
+*Optional:* [Lab 03A — Git, Going Further](../lab-03a-git-going-further/README.md) (reset, reflog,
+bisect, cherry-pick, interactive rebase, force-push — on a practice repository)
 
 ---
 

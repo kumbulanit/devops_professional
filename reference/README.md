@@ -6,6 +6,7 @@ under pressure — not as revision notes.
 | File | Covers |
 |---|---|
 | **[access-card.md](access-card.md)** | **Print this one.** Every URL, port, credential, `/etc/hosts` entry and start/stop command in the course, plus the port-8080 conflict map and the free-tier limits |
+| [../docs/theory/git-command-guide.md](../docs/theory/git-command-guide.md) | **Every everyday Git command explained**: what it means, real output, when to use it, when not to — plus *which undo command?* and *the commands that can destroy work* |
 | [git-cheatsheet.md](git-cheatsheet.md) | Setup, the four areas, daily commands, branching, **undo by situation**, merge strategies, conflict resolution, investigation (`bisect`, `log -S`), Conventional Commits, emergency recovery |
 | [docker-cheatsheet.md](docker-cheatsheet.md) | Images, containers, **runtime hardening flags**, Dockerfile essentials and traps, Compose, networking facts (including the UFW bypass), volumes and backup, housekeeping |
 | [kubectl-cheatsheet.md](kubectl-cheatsheet.md) | Inspection, **debugging in the order to try it**, symptom→cause table, apply/rollout, access, nodes, JSONPath, scripting primitives, object reference, the probe rule |

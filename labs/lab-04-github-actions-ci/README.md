@@ -218,12 +218,21 @@ the number one cause of "my workflow does not appear"** — GitHub silently igno
 cannot parse. Catching it locally saves a push-and-wait cycle.
 
 ```bash
-cd app && source .venv/bin/activate 2>/dev/null || (python3 -m venv .venv && source .venv/bin/activate && pip install -q -r requirements-dev.txt)
-flake8 src tests && pytest -q --cov=src --cov-report=term-missing
-cd ..
+cd ~/devops-course/paytrack-api-team/app
+[ -d .venv ] || python3 -m venv .venv
+source .venv/bin/activate
+pip install -q -r requirements-dev.txt
+flake8 src tests
+pytest -q --cov=src --cov-report=term-missing
+cd ~/devops-course/paytrack-api-team
 ```
 **What this does:** runs locally exactly what CI will run. **If it fails here it will fail
-there** — and finding out in 3 seconds beats finding out in 3 minutes.
+there** — and finding out in 3 seconds beats finding out in 3 minutes. The first three lines
+create the virtual environment only if this clone does not have one (a fresh clone never does —
+`.venv/` is ignored) and activate it **in your current shell**; each is a line of its own because
+activating inside `( … )` would be lost when the subshell ends. `flake8` prints nothing when the
+code is clean. The last line always returns you to the repository root, which the `git add`
+below needs.
 
 ---
 
@@ -282,7 +291,7 @@ assert "BROKEN" in s, "patch did not apply"
 p.write_text(s)
 print("broke the /health contract")
 PY
-git add -A && git commit -m "test: deliberately break the health endpoint contract"
+git add app/src/app.py && git commit -m "test: deliberately break the health endpoint contract"
 git push -u origin test/deliberately-break-ci
 ```
 **What this does:** changes `/health` to return `"BROKEN"`, which violates the assertion in
@@ -353,8 +362,11 @@ Merge the PR.
    a tool, instead of in every review.
 3. **Add `pytest --durations=5`** and find your slowest test. Keep the suite under 10
    minutes — the rule that keeps people waiting for it.
-4. **Run it locally** with [`act`](https://github.com/nektos/act) — `act pull_request` —
-   which executes workflows in Docker on your machine.
+4. **Run it locally** with [`act`](https://github.com/nektos/act), which executes workflows in
+   Docker on your machine. **[Lab 04A](../lab-04a-act-and-pipeline-security/README.md)** installs it,
+   runs this pipeline with it, and uses it to show secret masking, script injection, SHA pinning
+   and a versioned release. **[Lab 04B](../lab-04b-gitlab-ci/README.md)** builds the same pipeline on
+   GitLab CI.
 
 ---
 
@@ -377,7 +389,9 @@ Merge the PR.
 coverage floor, publishes artefacts, and **blocks any merge that breaks it**. Dependabot keeps
 dependencies and Actions patched.
 
-**Next:** [Lab 05 — Jenkins CI on localhost](../lab-05-jenkins-ci/README.md)
+**Next:** [Lab 05 — Jenkins CI on localhost](../lab-05-jenkins-ci/README.md) ·
+*Optional:* [Lab 04A — act and pipeline security](../lab-04a-act-and-pipeline-security/README.md) ·
+[Lab 04B — GitLab CI](../lab-04b-gitlab-ci/README.md)
 
 ---
 

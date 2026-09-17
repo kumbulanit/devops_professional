@@ -1,12 +1,13 @@
 # Module 2 — Version Control and Continuous Integration
 
-> **Days 1–2 · ~95 minutes of lecture · Labs 02, 03, 04, 05**
+> **Days 1–2 · ~120 minutes of lecture · Labs 02, 03, 04, 05**
 >
 > **Learning outcomes.** You can explain Git's internal object model well enough to reason
-> about any command; choose and justify a branching strategy; explain what each merge
-> strategy does to history; run an effective pull-request process; state the rules that
-> make Continuous Integration *actually* CI; and build the same pipeline in both GitHub
-> Actions and Jenkins.
+> about any command; say what each everyday command does before you run it; choose and
+> justify a branching strategy; explain what each merge strategy does to history; rebase a
+> branch, resolve a rebase conflict and undo a rebase — and know when not to rebase; run an
+> effective pull-request process; state the rules that make Continuous Integration
+> *actually* CI; and build the same pipeline in both GitHub Actions and Jenkins.
 
 ---
 
@@ -119,6 +120,63 @@ have been working on three things at once (`git add -p`).
  untracked ──git add──► staged ──git commit──► committed/unmodified ──edit──► modified ──git add──► staged
       ▲                                                                                       │
       └──────────────────────────── git rm --cached ─────────────────────────────────────────┘
+```
+
+### Everyday commands, and what each one means
+
+> **Every command in full** — what it means, real output, when to use it, when not to, and what
+> to watch for — is in the **[Git Command Guide](git-command-guide.md)** (init · clone · status ·
+> diff · add · rm · mv · commit · log · show · blame · branch · switch · remote · fetch · pull ·
+> push · stash · restore · reset · reflog · revert · cherry-pick · tag · describe · bisect · clean).
+> The tables below are the summary.
+
+Every Git command either **looks** at the four areas or **changes** one of them. Knowing which
+kind a command is tells you how careful to be before you press Enter.
+
+**Commands that only look — safe at any moment**
+
+| Command | What it means | Reach for it when |
+|---|---|---|
+| `git status` | Which files are modified, staged or untracked — and whether you are in the middle of a merge or rebase | Before and after every other command |
+| `git diff` | Edits in the working tree that are **not staged** yet | Checking what you actually changed |
+| `git diff --staged` | Exactly what the **next commit** will contain | Every time, just before `git commit` |
+| `git log --oneline --graph --decorate --all` | The commit graph: every branch, one line per commit (the `git lg` alias from Lab 02) | Seeing where branches split and joined |
+| `git show <sha>` | One commit: author, date, message and full diff | Reviewing a single change |
+| `git branch -vv` | Local branches with their upstream and ahead/behind counts | Before a push or a pull |
+| `git remote -v` | The named remotes and their URLs — usually just `origin` | Checking where a push will land |
+| `git reflog` | Every position `HEAD` has held, including commits no branch points at any more | Recovering after a bad reset or rebase |
+
+**Commands that record and share work**
+
+| Command | What it means | What it changes |
+|---|---|---|
+| `git switch -c <branch>` | Create a branch at the current commit and move onto it | A new local branch pointer |
+| `git add <path>` · `git add -p` | Copy changes into the index — the proposed next commit. `-p` asks hunk by hunk | The index |
+| `git commit -m "type: subject"` | Record the index as a new, permanent commit | Local history (adds) |
+| `git push -u origin HEAD` | Upload the current branch; `-u` remembers `origin` as its upstream | The remote |
+| `git fetch` | Download new commits into `origin/*`. **Your branches and files are untouched** | Remote-tracking refs only |
+| `git merge origin/main` | Join `main` into your branch with a merge commit that has two parents | Adds one commit |
+| `git rebase origin/main` | Replay your commits on top of `main` as **new** commits | **Rewrites** your branch |
+| `git pull` · `git pull --rebase` | `fetch` + `merge`, or `fetch` + `rebase` | Adds, or rewrites |
+
+> **A habit worth keeping:** `git fetch`, look at `git lg`, then merge or rebase *on purpose* —
+> instead of a blind `git pull` that combines whatever happened to arrive.
+
+**A normal day, in order**
+
+```bash
+git switch main && git pull             # start from the latest main
+git switch -c feature/PAY-142           # one branch per change
+# ... edit ...
+git status                              # WHAT changed?
+git diff                                # HOW exactly?
+git add -p                              # stage one logical change
+git diff --staged                       # last look before recording it
+git commit -m "feat: add readiness probe"
+git fetch origin                        # has main moved on?
+git rebase origin/main                  # replay my work on top of it (see §2.5)
+python -m pytest -q                     # test what I am about to push
+git push -u origin HEAD                 # publish the branch, open the PR
 ```
 
 ---
@@ -311,6 +369,209 @@ fetched — it protects a colleague who pushed to your branch.
 | Bringing `main`'s latest into your own open PR branch | **Rebase** (yours alone) or merge if others share it |
 | Any branch that other people have pulled | **Merge commit only** |
 
+### Rebase in practice — what it means, how to do it, when to use it
+
+> **Rebase** — moving the starting point (the *base*) of your branch. Git sets your commits
+> aside, moves to the new base, and replays each commit on top of it, creating **new commits
+> with new SHAs**.
+
+The name is literal: your branch used to start at an old `main` commit; after `git rebase
+origin/main` it starts at the tip of today's `main`. Each replayed commit carries the same
+change but has a different parent — and because a commit's SHA covers its parent, every
+replayed commit gets a new SHA. Everything about when rebasing is safe follows from that one
+fact.
+
+#### The same branch, merged and rebased
+
+Real output from one repository. A colleague pushed a fix to `main` while you had two commits
+on `feature/PAY-142`:
+
+```
+# before: the branch and main have diverged
+* f1c7cab (HEAD -> feature/PAY-142, origin/feature/PAY-142) docs: explain readiness
+* f7c4490 feat: add readiness probe
+| * 6fcdcba (origin/main, origin/HEAD) fix: raise settlement timeout
+|/
+* 039ad72 (main) feat: add PayTrack API service
+
+# option 1:  git merge origin/main
+*   a15f32e Merge remote-tracking branch 'origin/main' into feature/PAY-142
+|\
+| * 6fcdcba fix: raise settlement timeout
+* | f1c7cab docs: explain readiness
+* | f7c4490 feat: add readiness probe
+|/
+* 039ad72 feat: add PayTrack API service
+
+# option 2:  git rebase origin/main
+* a39d691 docs: explain readiness
+* 0b25573 feat: add readiness probe
+* 6fcdcba fix: raise settlement timeout
+* 039ad72 feat: add PayTrack API service
+```
+
+The files are identical in both outcomes. The merge **adds** `a15f32e` and leaves your
+commits untouched; the rebase **replaces** `f7c4490`/`f1c7cab` with `0b25573`/`a39d691`.
+
+#### How to rebase your branch onto the latest `main`
+
+```bash
+git switch feature/PAY-142
+git fetch origin                 # get the latest shared main
+git rebase origin/main           # replay your commits on top of it
+python -m pytest -q              # the replayed commits are untested combinations - test them
+git push --force-with-lease      # the branch was rewritten, so a plain push is rejected
+```
+
+What you see:
+
+```
+$ git fetch origin
+   039ad72..6fcdcba  main       -> origin/main
+$ git rebase origin/main
+Successfully rebased and updated refs/heads/feature/PAY-142.
+$ git push
+ ! [rejected]        feature/PAY-142 -> feature/PAY-142 (non-fast-forward)
+hint: use 'git pull' before pushing again.
+$ git push --force-with-lease
+ + f1c7cab...a39d691 feature/PAY-142 -> feature/PAY-142 (forced update)
+```
+
+> ⚠️ **Do not follow the `git pull` hint after a rebase.** The remote still holds your *old*
+> commits; pulling merges them back in and every commit on the branch appears twice. Push your
+> own rebased branch with `--force-with-lease`, which refuses if anyone else pushed to it
+> since your last fetch — unlike `--force`, which silently overwrites their work.
+
+`git pull --rebase` does `fetch` + `rebase` in one step. It is the right way to pick up
+commits you pushed from another machine to *your own* branch, without creating a pointless
+"Merge branch" commit. (Lab 00 sets `pull.rebase false`, so plain `git pull` merges unless you
+ask for `--rebase`.)
+
+#### When a rebase stops for a conflict
+
+A rebase replays commits one at a time, so a conflict stops it at a specific commit:
+
+```
+$ git rebase origin/main
+Rebasing (1/4)
+CONFLICT (content): Merge conflict in app/src/config.py
+error: could not apply d92986f... feat: raise settlement timeout to 60s
+$ git status
+interactive rebase in progress; onto 02cf66b
+  (fix conflicts and then run "git rebase --continue")
+  (use "git rebase --skip" to skip this patch)
+  (use "git rebase --abort" to check out the original branch)
+$ cat app/src/config.py
+<<<<<<< HEAD
+TIMEOUT = 45
+=======
+TIMEOUT = 60
+>>>>>>> d92986f (feat: raise settlement timeout to 60s)
+```
+
+| Command | Does |
+|---|---|
+| edit the file, then `git add <file>` | Marks this commit's conflict as resolved |
+| `git rebase --continue` | Finishes this commit and replays the next one. **Do not** run `git commit` mid-rebase |
+| `git rebase --skip` | Drops *this* commit entirely — only when `main` already contains the same change |
+| `git rebase --abort` | Puts the branch back exactly as it was before the rebase started |
+
+> 🔄 **`HEAD` means the other side during a rebase.** In a merge, `HEAD` is your branch. In a
+> rebase, `HEAD` is the branch you are rebasing *onto* plus the commits replayed so far; the
+> lower half of the conflict (`>>>>>>> d92986f`) is **your** commit. Read the label after
+> `>>>>>>>` before deciding which side to keep.
+
+Because commits are replayed individually, you may resolve the same region more than once.
+If that happens often on long-lived branches, turn on `git config --global rerere.enabled
+true` ("reuse recorded resolution"), which replays a resolution you have already made.
+
+#### Interactive rebase — tidy the branch before review
+
+`git rebase -i <base>` turns the replay into a plan you can edit. It opens your editor with
+one line per commit, **oldest first** (the reverse of `git log`):
+
+```
+$ git log --oneline
+eb5906b fix typo
+0f428b6 wip
+15d34da feat: add readiness probe
+080168c feat: raise settlement timeout to 60s
+$ git rebase -i main
+```
+
+```
+pick 080168c feat: raise settlement timeout to 60s
+pick 15d34da feat: add readiness probe
+pick 0f428b6 wip
+pick eb5906b fix typo
+```
+
+Edit the plan — change verbs, move lines — then save and close:
+
+```
+pick  080168c feat: raise settlement timeout to 60s
+fixup 0f428b6 wip
+fixup eb5906b fix typo
+pick  15d34da feat: add readiness probe
+```
+
+```
+Successfully rebased and updated refs/heads/feature/PAY-150-raise-timeout.
+$ git log --oneline
+3dafa34 feat: add readiness probe
+51d5488 feat: raise settlement timeout to 60s
+```
+
+| Verb | Does |
+|---|---|
+| `pick` | Keep the commit as it is |
+| `reword` | Keep the change, edit the message |
+| `edit` | Stop after this commit so you can amend it |
+| `squash` | Meld into the commit above and **combine** the messages |
+| `fixup` | Meld into the commit above and **discard** this message |
+| `drop` | Delete the commit |
+
+**The shortcut:** make follow-up commits with `git commit --fixup <sha>`; later,
+`git rebase -i --autosquash main` moves each `fixup!` commit under its target and marks it
+`fixup` for you.
+
+#### Undoing a rebase
+
+Nothing a rebase does in your own clone is permanent. Git records where the branch was:
+
+```
+$ git reflog -5
+a39d691 HEAD@{0}: rebase (finish): returning to refs/heads/feature/PAY-142
+a39d691 HEAD@{1}: rebase (pick): docs: explain readiness
+0b25573 HEAD@{2}: rebase (pick): feat: add readiness probe
+6fcdcba HEAD@{3}: rebase (start): checkout origin/main
+f1c7cab HEAD@{4}: commit: docs: explain readiness
+$ git reset --hard ORIG_HEAD
+HEAD is now at f1c7cab docs: explain readiness
+```
+
+- **`ORIG_HEAD`** points at the branch tip from before the rebase, so `git reset --hard
+  ORIG_HEAD` undoes the whole rebase in one step.
+- Once `ORIG_HEAD` has moved on (another reset, merge or rebase), use the **reflog**: the line
+  just below `rebase (start)` is your old tip — `git reset --hard HEAD@{4}` here.
+- `--hard` discards uncommitted edits, so commit or stash first. The reflog lives only in your
+  clone and expires (about 90 days by default).
+
+#### When to rebase — and when not to
+
+| Situation | Rebase? | Why |
+|---|---|---|
+| Your own branch, not pushed yet | ✅ Yes | Nobody else has these commits — rewrite freely |
+| Your own PR branch, and `main` has moved on | ✅ Yes, then `--force-with-lease` | The author, who knows the code, resolves the conflicts |
+| "wip" and "fix typo" commits before review | ✅ Yes — `rebase -i` | Reviewers read a clean story; every commit builds |
+| Pulling your own branch after pushing from a second machine | ✅ `git pull --rebase` | No pointless "Merge branch" commit |
+| A branch a colleague has pulled or pushed to | ❌ No — merge | Rewriting it breaks their copy; agree first if you must |
+| Review is under way on the PR | ❌ Prefer new commits | Reviewers lose "what changed since I last looked" |
+| `main`, `develop`, `release/*` | ❌ Never | Shared history — branch protection should block force-push |
+| The team squash-merges every PR | Optional | `main` gets one commit per PR either way |
+
+> **Rule of thumb:** rebase to tidy and update **your** work; merge to combine **shared** work.
+
 ### Merge conflicts
 
 A conflict occurs when both sides changed **the same region of the same file**, and Git
@@ -326,7 +587,8 @@ cannot decide. Git is not broken; it is asking a question.
 
 Resolution = edit the file so it is correct (usually neither side verbatim), delete all
 three markers, `git add` the file, then `git commit` (or `git rebase --continue`).
-`git merge --abort` / `git rebase --abort` always gets you back to safety.
+`git merge --abort` / `git rebase --abort` always gets you back to safety. During a rebase the
+sides are swapped — see *Rebase in practice* above.
 
 You will deliberately create and resolve a conflict in **Lab 03**.
 
@@ -652,6 +914,10 @@ experience rather than from marketing.
 | **Fast-forward** | Moving a branch pointer forward with no merge commit |
 | **Squash merge** | Combining a branch's commits into one new commit on the target |
 | **Rebase** | Replaying commits onto a new base, creating new commits |
+| **Interactive rebase** | `git rebase -i`: an editable replay plan — reorder, squash, fixup, reword, drop |
+| **ORIG_HEAD** | Where the branch tip was before the last reset, merge or rebase |
+| **Reflog** | The local log of every position `HEAD` has held; the safety net for undoing rewrites |
+| **Upstream** | The remote branch a local branch tracks (`git push -u`), used by bare `push` and `pull` |
 | **Force-with-lease** | A force-push that aborts if the remote moved unexpectedly |
 | **Pull request** | A reviewable, gateable proposal to merge |
 | **Branch protection** | Server-side rules enforcing review and status checks |
@@ -669,14 +935,16 @@ experience rather than from marketing.
 1. Explain why creating a Git branch is O(1) regardless of repository size.
 2. A colleague rebased and force-pushed `main`. Describe what breaks for everyone else, and
    how you would recover.
-3. Your team squash-merges PRs. What capability have you traded away, and what have you
+3. Your PR branch is three commits behind `main`. Give the commands to rebase it and publish
+   it, explain why a plain `git push` is then rejected, and say how you would undo the rebase.
+4. Your team squash-merges PRs. What capability have you traded away, and what have you
    gained?
-4. Your build takes 45 minutes. Name three specific consequences, and three things you
+5. Your build takes 45 minutes. Name three specific consequences, and three things you
    would do first.
-5. Why must the artefact be built once and promoted, rather than rebuilt per environment?
-6. Your pipeline uses `uses: some-org/deploy-action@main`. State the risk in one sentence
+6. Why must the artefact be built once and promoted, rather than rebuilt per environment?
+7. Your pipeline uses `uses: some-org/deploy-action@main`. State the risk in one sentence
    and the fix in one sentence.
-7. A team has a Jenkins server, feature branches lasting three weeks, and a nightly build.
+8. A team has a Jenkins server, feature branches lasting three weeks, and a nightly build.
    Are they doing CI? Justify your answer against the three-question test.
 
 ---

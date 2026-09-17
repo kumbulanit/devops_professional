@@ -20,7 +20,7 @@ sudo ./install-ubuntu24.sh
 | `--skip prepull` | Skip the image pre-pull (slow connections) |
 | `--help` | Usage |
 
-Components: `base` · `docker` · `sysctl` · `gh` · `k8s` · `iac` · `security` · `hosts` ·
+Components: `base` · `docker` · `sysctl` · `gh` · `act` · `k8s` · `iac` · `security` · `hosts` ·
 `gitcfg` · `workspace` · `helmrepos` · `prepull`
 
 ### What it installs
@@ -31,6 +31,7 @@ Components: `base` · `docker` · `sysctl` · `gh` · `k8s` · `iac` · `securit
 | docker | Docker Engine, CLI, containerd, buildx, **compose v2 plugin**; adds you to the `docker` group |
 | sysctl | Raises `fs.inotify` limits — k3s fails in confusing ways without this |
 | gh | GitHub CLI — Lab 04 uses `gh run watch`, and it makes the Lab 03 auth far easier |
+| act | [nektos/act](https://github.com/nektos/act), pinned, **checksum-verified** before install — runs `.github/workflows` locally in Docker (Lab 04A) |
 | k8s | kubectl (latest stable), k3d, Helm, kubeseal |
 | iac | Terraform (or OpenTofu), Ansible + ansible-lint, Python Docker SDK |
 | security | Trivy, Gitleaks, Syft, pre-commit |
@@ -49,6 +50,7 @@ Two things are deliberately left to the delegate, because they are personal cred
 
 - **`git config --global user.name` / `user.email`** — stamped into every commit.
 - **`gh auth login`** — GitHub authentication for Lab 03 onwards.
+- **Your GitHub and GitLab accounts** — Lab 00 Step 8 walks through both.
 
 Everything else, including the `/etc/hosts` entries and the `~/devops-course` workspace, is
 set up for you.
@@ -61,7 +63,11 @@ set up for you.
    git config --global user.name  "Your Name"
    git config --global user.email "you@example.com"
    ```
-3. Authenticate to GitHub (needed from Lab 03): `gh auth login`
+3. Authenticate to GitHub (needed from Lab 03), including the `workflow` scope Lab 04 needs to push
+   workflow files:
+   ```bash
+   gh auth login --hostname github.com --git-protocol https --web --scopes workflow
+   ```
 4. Re-check any time: `sudo ./install-ubuntu24.sh --verify`
 
 Log: `/var/log/devops-course-install.log` (or `$TMPDIR` if `/var/log` is not writable).

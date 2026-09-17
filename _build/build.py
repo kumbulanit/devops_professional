@@ -37,15 +37,23 @@ CHECK_REF = ('Run this as a discussion, not a quiz — the reasoning matters mor
 SECTION_REF = ('Section divider. Use it to re-set attention and to say explicitly which lab this '
                'block leads into.')
 
+DEMO_REF = ('Live demo. Type it, do not paste it — the pauses are where people learn. If the environment '
+            'misbehaves, walk through the expected output already on the slide and carry on; the same steps '
+            'are in the lab README for everyone to run after class.')
+
+CODE_REF = ('Walk the code top to bottom. The numbered points on the right are the talk track; the full, '
+            'runnable version is in the matching lab README.')
+
 BANK_REF = ('Banking slide. Source: docs/theory/appendix-a-devops-in-a-regulated-bank.md. '
             'Expect push-back here - that is the point. The three arguments this cohort will '
             'raise are segregation of duties (A.3), the CAB (A.4) and change freezes (A.7).')
 
 
 def _default_notes(prs, spec):
-    """Give every lab / check / section / bank slide a useful trainer note if the
-    content file did not supply one."""
-    for slide, item in zip(prs.slides, spec):
+    """Give every lab / check / section / bank / demo / code slide a useful trainer note
+    if the content file did not supply one. Pairs come from the build itself: exercises
+    insert a reveal slide, so zipping slides with the spec would drift after the first one."""
+    for slide, item in dk.LAST_PAIRS:
         kind = item[0]
         tf = slide.notes_slide.notes_text_frame
         if tf.text.strip():
@@ -59,18 +67,37 @@ def _default_notes(prs, spec):
             tf.text = SECTION_REF
         elif kind == 'bank':
             tf.text = BANK_REF
+        elif kind == 'demo':
+            tf.text = DEMO_REF
+        elif kind == 'code':
+            tf.text = CODE_REF
 
 
-def build_day(day):
-    mod = importlib.import_module(f'content_day{day}')
-    spec = getattr(mod, f'DAY{day}')
+def _build_one(day, spec, filename):
     prs = dk.new_deck(TEMPLATE)
     dk.build(prs, spec)
     _default_notes(prs, spec)
     os.makedirs(OUT, exist_ok=True)
-    path = os.path.join(OUT, f'{TITLES[day]}.pptx')
+    path = os.path.join(OUT, f'{filename}.pptx')
     n = len(prs.slides._sldIdLst)      # includes auto-added exercise reveal slides
+    if dk.OVERFULL:
+        print(f'  Day {day}: {len(dk.OVERFULL)} over-full block(s) in {filename}:')
+        for w in dk.OVERFULL:
+            print('     -', w)
+        dk.OVERFULL.clear()
     prs.save(path)
+    return path, n
+
+
+def build_day(day):
+    """Build the taught deck. If the content file also defines DAY<n>_EXTRA, build that too as a
+    separate optional reading deck (<title>_Going_Further.pptx), so the taught deck stays lean."""
+    mod = importlib.import_module(f'content_day{day}')
+    path, n = _build_one(day, getattr(mod, f'DAY{day}'), TITLES[day])
+    extra = getattr(mod, f'DAY{day}_EXTRA', None)
+    if extra:
+        xpath, xn = _build_one(day, extra, f'{TITLES[day]}_Going_Further')
+        print(f'  Day {day}: {xn:3d} slides  →  {os.path.basename(xpath)}  (optional reading)')
     return path, n
 
 

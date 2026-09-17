@@ -156,6 +156,21 @@ def fit_pt(text_lines, base, floor, chars_at_base, rows_at_base):
     return max(floor, round(pt, 1))
 
 
+def fit_wrap(text_lines, base, floor, chars_at_base, rows_at_base):
+    """For text that WRAPS inside its box: only the number of wrapped rows matters,
+    not the paragraph length. (fit_pt treats a long paragraph as one long line and
+    shrinks it to the floor.)"""
+    import math
+    pt = base
+    while pt > floor:
+        cpl = chars_at_base * base / pt
+        rows = sum(max(1, math.ceil(len(t) / cpl)) for t in text_lines)
+        if rows <= rows_at_base * base / pt:
+            return round(pt, 1)
+        pt -= 0.5
+    return floor
+
+
 def fit_block(items, avail, chars_at_base, base, floor, lead=0.12,
               head_h=0.30, sub_h=0.26, row=0.21):
     """Shrink the font until the measured stack fits `avail`, and return the
@@ -178,6 +193,8 @@ def fit_block(items, avail, chars_at_base, base, floor, lead=0.12,
             heights.append((hh, hs))
             used += hh + lead + (hs + 0.05 if sub else 0.0)
         if used <= avail or pt <= floor:
+            if used > avail + 0.05:
+                OVERFULL.append(f'{used:.2f} > {avail:.2f} in: ' + str(items[0])[:60])
             return round(pt, 1), used, heights
         pt -= 0.4
 
@@ -217,7 +234,7 @@ def _set_title(slide, title, kicker=None, sub=None):
     if kicker:
         label(slide, M, 0.36, TITLE_W, 0.26, kicker.upper(), 10, True, GREY)
     label(slide, M, 0.66, TITLE_W, 0.95, title,
-          fit_pt([title], 28, 19, 46, 2), True, NAVY, anchor='m',
+          fit_pt([title], 28, 19, 34, 2), True, NAVY, anchor='m',
           font='Aptos Display', line=0.98)
     y = 1.52
     if sub:
@@ -225,6 +242,25 @@ def _set_title(slide, title, kicker=None, sub=None):
         y += 0.34
     line(slide, M, y + 0.06, M + 2.60, y + 0.06, LTBLUE, 2.0)
     return y
+
+
+def label2(slide, x, y, w, h, head, sub, pt, head_col=NAVY, sub_col=GREY, sub_dpt=1.7):
+    """Heading and sub-line in ONE text box, so the renderer wraps them together
+    and a heading that wraps can never overlap its own sub-line."""
+    tb = slide.shapes.add_textbox(Inches(x), Inches(y), Inches(w), Inches(h))
+    tf = tb.text_frame; tf.word_wrap = True
+    tf.margin_left = tf.margin_right = Inches(0.08)
+    tf.margin_top = tf.margin_bottom = Inches(0.04)
+    for i, (txt, size, bold, col) in enumerate(
+            [(head, pt, bool(sub), head_col)] + ([(sub, pt - sub_dpt, False, sub_col)] if sub else [])):
+        para = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
+        para.space_after = Pt(1); para.line_spacing = 0.95
+        if i == 1:
+            para.space_before = Pt(2)
+        r = para.add_run(); r.text = txt
+        r.font.size = Pt(size); r.font.bold = bold; r.font.name = 'Aptos'
+        r.font.color.rgb = RGBColor.from_string(col)
+    return tb
 
 
 def notes(slide, text):
@@ -290,7 +326,7 @@ def s_bullets(prs, title, bullets, kicker=None, note=None, cols=1):
         flat.append(b[0] if isinstance(b, tuple) else b)
         if isinstance(b, tuple) and b[1]:
             flat.append(b[1])
-    avail = (BOT - 0.45 if note else BOT) - TOP
+    avail = note_floor(note) - TOP
     if cols == 2:
         half = (len(bullets) + 1) // 2
         groups = [(M, bullets[:half]), (M + CW / 2 + 0.15, bullets[half:])]
@@ -322,15 +358,31 @@ def s_bullets(prs, title, bullets, kicker=None, note=None, cols=1):
     return s
 
 
-def _note(s, note, colour=GOLD, pale='gold', y=None):
+OVERFULL = []          # slides whose content could not fit even at the floor size
+
+
+def _note_geom(note):
     txt = note if isinstance(note, str) else note[1]
     tag = 'NOTE' if isinstance(note, str) else note[0]
-    h = 0.44 + 0.20 * (len(txt) // 118)
+    # The tag column grows with the tag, so a long tag no longer wraps.
+    tw = min(3.4, max(1.05, 0.098 * len(tag) + 0.36))
+    cpl = int(118 * (CW - tw - 0.18) / (CW - 1.38))
+    h = 0.44 + 0.20 * (len(txt) // cpl)
+    return txt, tag, tw, cpl, h
+
+
+def note_floor(note):
+    """Where content must stop when a note box sits at the foot of the slide."""
+    return BOT if not note else BOT - _note_geom(note)[4] - 0.06
+
+
+def _note(s, note, colour=GOLD, pale='gold', y=None):
+    txt, tag, tw, cpl, h = _note_geom(note)
     y = y if y is not None else BOT - h + 0.06
     box(s, M, y, CW, h, fill=PALE[pale], line_col=colour, line_w=0.75)
-    label(s, M + 0.16, y + 0.07, 1.05, 0.26, tag, 9, True, colour)
-    label(s, M + 1.20, y + 0.06, CW - 1.38, h - 0.12,
-          txt, fit_pt([txt], 11.5, 9, 118, 3), False, NAVY)
+    label(s, M + 0.16, y + 0.07, tw, 0.26, tag, 9, True, colour)
+    label(s, M + tw + 0.15, y + 0.06, CW - tw - 0.33, h - 0.12,
+          txt, fit_wrap([txt], 11.5, 9, cpl, 3), False, NAVY)
     return s
 
 
@@ -340,10 +392,10 @@ def s_define(prs, term, definition, points=None, kicker='DEFINITION', note=None)
     box(s, M, TOP, CW, dh, fill=PALE['teal'], line_col=TEAL, line_w=1.0)
     box(s, M, TOP, 0.075, dh, fill=TEAL)
     label(s, M + 0.32, TOP + 0.08, CW - 0.55, dh - 0.16, definition,
-          fit_pt([definition], 15, 11, 96, 4), False, NAVY, anchor='m', line=1.0)
+          fit_wrap([definition], 15, 11, 96, 4), False, NAVY, anchor='m', line=1.0)
     y = TOP + dh + 0.26
     if points:
-        avail = (BOT - 0.5 if note else BOT) - y
+        avail = note_floor(note) - y
         flat = [p[0] if isinstance(p, tuple) else p for p in points]
         pt, used, heights = fit_block(points, avail, 96, 13, 9.0)
         gap = spread(len(points), avail, used, cap=0.26)
@@ -365,7 +417,11 @@ def s_two(prs, title, left, right, kicker=None, note=None):
     """left/right: (heading, [items], colour_key)"""
     s = _blank(prs); _set_title(s, title, kicker)
     w = (CW - 0.34) / 2
-    bot = (BOT - 0.5) if note else BOT
+    bot = note_floor(note)
+    both = left[1] + right[1]
+    base = 13.5 if max(len(left[1]), len(right[1])) <= 5 else 12
+    shared_pt = min(fit_wrap(col[1], base, 8.8, int(w * 8.6 * 12 / base), int((bot - TOP - 0.62) / 0.40))
+                    for col in (left, right))
     for i, (head, items, ckey) in enumerate((left, right)):
         col = {'teal': TEAL, 'orange': ORANGE, 'green': GREEN,
                'red': RED, 'grey': GREY, 'gold': GOLD}[ckey]
@@ -376,20 +432,25 @@ def s_two(prs, title, left, right, kicker=None, note=None):
         box(s, x, TOP, w, 0.44, fill=col)
         label(s, x + 0.16, TOP + 0.06, w - 0.3, 0.32, head, 12.5, True, WHITE)
         y = TOP + 0.62
-        pt = fit_pt(items, 12, 8.8, int(w * 8.6), int((bot - y) / 0.34))
-        for it in items:
+        # Few items get a larger face and are spread down the panel instead of
+        # clumping under the header and leaving the lower half empty.
+        pt = shared_pt
+        cpl = int(w * 9.0 * 12 / pt)
+        hts = [0.28 * pt / 12 + 0.205 * pt / 12 * (len(it) // cpl) for it in items]
+        used = sum(hts) + 0.11 * len(items)
+        gap = spread(len(items), bot - y - 0.12, used, cap=0.30)
+        for it, hh in zip(items, hts):
             mark, txt = ('', it)
             if it[:2] in ('✔ ', '✗ ', '→ ', '• '):
                 mark, txt = it[0], it[2:]
-            hh = 0.28 + 0.205 * (len(txt) // int(w * 9.0))
             if mark:
                 label(s, x + 0.16, y - 0.035, 0.26, 0.3, mark, pt, True,
                       GREEN if mark == '✔' else (RED if mark == '✗' else col))
-                label(s, x + 0.45, y - 0.035, w - 0.62, hh, txt, pt, False, NAVY)
+                label(s, x + 0.45, y - 0.035, w - 0.62, hh + 0.05, txt, pt, False, NAVY)
             else:
-                box(s, x + 0.18, y + 0.075, 0.11, 0.11, fill=col)
-                label(s, x + 0.44, y - 0.035, w - 0.62, hh, txt, pt, False, NAVY)
-            y += hh + 0.11
+                box(s, x + 0.18, y + 0.075 * pt / 12, 0.11, 0.11, fill=col)
+                label(s, x + 0.44, y - 0.035, w - 0.62, hh + 0.05, txt, pt, False, NAVY)
+            y += hh + 0.11 + gap
     if note:
         _note(s, note)
     return s
@@ -397,35 +458,49 @@ def s_two(prs, title, left, right, kicker=None, note=None):
 
 def s_table(prs, title, headers, rows, kicker=None, note=None, widths=None,
             emph=None, first_bold=True):
+    """Row heights are measured per row, and the face is the largest that lets every
+    cell fit — so a short table is readable from the back of the room."""
+    import math
     s = _blank(prs); _set_title(s, title, kicker)
-    bot = (BOT - 0.52) if note else BOT
+    bot = note_floor(note) - 0.04 if note else BOT
     n = len(headers)
     widths = widths or [1.0 / n] * n
     widths = [w / sum(widths) for w in widths]
     xs, acc = [], M
     for w in widths:
         xs.append((acc, CW * w)); acc += CW * w
-    hh = 0.40
+    hh = 0.42
     box(s, M, TOP, CW, hh, fill=TEAL)
     for (x, w), h in zip(xs, headers):
-        label(s, x + 0.10, TOP + 0.045, w - 0.18, 0.30, h, 10.8, True, WHITE)
-    avail = bot - (TOP + hh) - 0.04
-    rh = min(0.52, max(0.26, avail / max(1, len(rows))))
-    allcells = [c for r in rows for c in r]
-    pt = fit_pt(allcells, 11, 8.2, int(min(w for _, w in xs) * 8.8),
-                max(1, int(rh / 0.20)))
+        label(s, x + 0.10, TOP + 0.05, w - 0.18, 0.32, h, 11.5, True, WHITE)
+    avail = bot - (TOP + hh) - 0.02
+
+    def lines(txt, w, pt, bold):
+        cpi = (11.6 if bold else 12.8) * 11.0 / pt
+        cpl = max(4, int((w - 0.36) * cpi))
+        return max(1, math.ceil(len(txt) * 1.06 / cpl))
+
+    for pt in (14, 13.5, 13, 12.5, 12, 11.5, 11, 10.5, 10, 9.5, 9, 8.5):
+        heights = [max(lines(c, w, pt, first_bold and j == 0)
+                       for j, (c, (x, w)) in enumerate(zip(r, xs))) * pt * 1.17 / 72 + 0.13
+                   for r in rows]
+        if sum(heights) <= avail:
+            break
+    if sum(heights) > avail:
+        OVERFULL.append(title)
+    extra = min(0.22, max(0.0, (avail - sum(heights)) / max(1, len(rows))))
     y = TOP + hh
-    for i, r in enumerate(rows):
+    for i, (r, rh) in enumerate(zip(rows, heights)):
+        rh += extra
         fill = WHITE if i % 2 == 0 else PALE['grey']
         if emph and i in emph:
             fill = PALE['gold']
         box(s, M, y, CW, rh, fill=fill, line_col='D8DEE4', line_w=0.5)
         for j, ((x, w), cell) in enumerate(zip(xs, r)):
             col = NAVY
-            txt = cell
-            if txt[:2] in ('✔ ', '✗ '):
-                col = GREEN if txt[0] == '✔' else RED
-            label(s, x + 0.10, y + 0.035, w - 0.18, rh - 0.07, txt, pt,
+            if cell[:2] in ('✔ ', '✗ '):
+                col = GREEN if cell[0] == '✔' else RED
+            label(s, x + 0.10, y + 0.02, w - 0.18, rh - 0.04, cell, pt,
                   first_bold and j == 0, col, anchor='m')
         y += rh
     if note:
@@ -441,7 +516,7 @@ def s_bank(prs, title, points, kicker='IN A REGULATED BANK', lead=None, ref=None
         box(s, M, y, CW, h, fill=PALE['gold'], line_col=GOLD, line_w=1.0)
         box(s, M, y, 0.075, h, fill=GOLD)
         label(s, M + 0.30, y + 0.06, CW - 0.5, h - 0.12, lead,
-              fit_pt([lead], 14, 10.5, 104, 3), False, NAVY, anchor='m', line=1.0)
+              fit_wrap([lead], 14, 10.5, 104, 3), False, NAVY, anchor='m', line=1.0)
         y += h + 0.24
     bot = BOT - (0.42 if ref else 0)
     pt, used_b, heights = fit_block(points, bot - y, 98, 13, 9.0)
@@ -460,8 +535,9 @@ def s_bank(prs, title, points, kicker='IN A REGULATED BANK', lead=None, ref=None
     return s
 
 
-def s_lab(prs, lab_no, lab_title, objective, steps, outcome):
-    s = _blank(prs); _set_title(s, lab_title, f'HANDS-ON  ·  LAB {lab_no}')
+def s_lab(prs, lab_no, lab_title, objective, steps, outcome,
+          kicker='YOUR LAB  ·  AFTER CLASS'):
+    s = _blank(prs); _set_title(s, lab_title, f'LAB {lab_no}  ·  {kicker}')
     box(s, M, TOP, CW, 0.72, fill=PALE['green'], line_col=GREEN, line_w=1.0)
     label(s, M + 0.20, TOP + 0.06, 1.25, 0.28, 'OBJECTIVE', 9, True, GREEN)
     label(s, M + 0.20, TOP + 0.30, CW - 0.4, 0.38, objective,
@@ -469,7 +545,7 @@ def s_lab(prs, lab_no, lab_title, objective, steps, outcome):
     y = TOP + 0.96
     label(s, M, y, CW, 0.3, 'YOU WILL', 9.5, True, TEAL); y += 0.34
     avail_l = BOT - 0.95 - y
-    pt = fit_pt(steps, 12.5, 10, 100, max(1, int(avail_l / 0.34)))
+    pt = fit_wrap(steps, 12.5, 10, 100, max(1, int(avail_l / 0.32)))
     used_l = sum(0.30 + 0.21 * (len(st) // 100) + 0.10 for st in steps)
     gap_l = spread(len(steps), avail_l, used_l, cap=0.30)
     for i, st in enumerate(steps, 1):
@@ -482,14 +558,14 @@ def s_lab(prs, lab_no, lab_title, objective, steps, outcome):
     box(s, M, BOT - h, CW, h, fill=PALE['blue'], line_col=TEAL, line_w=0.75)
     label(s, M + 0.20, BOT - h + 0.05, 1.15, 0.26, 'OUTCOME', 9, True, TEAL)
     label(s, M + 1.35, BOT - h + 0.04, CW - 1.55, h - 0.1, outcome,
-          fit_pt([outcome], 12, 9.5, 108, 3), False, NAVY, anchor='m')
+          fit_wrap([outcome], 12, 9.5, 108, 3), False, NAVY, anchor='m')
     return s
 
 
 def s_check(prs, title, questions, kicker='CHECK YOUR UNDERSTANDING'):
     s = _blank(prs); _set_title(s, title, kicker)
     y = TOP
-    pt = fit_pt(questions, 13, 9.5, 104, max(1, int((BOT - y) / 0.40)))
+    pt = fit_wrap(questions, 13, 9.5, 104, max(1, int((BOT - y) / 0.36)))
     used_c = sum(0.34 + 0.215 * (len(q) // 104) + 0.16 for q in questions)
     gap_c = spread(len(questions), BOT - y, used_c, cap=0.30)
     for i, q in enumerate(questions, 1):
@@ -520,7 +596,7 @@ def s_diagram(prs, title, fn, kicker=None, note=None):
     s = _blank(prs); _set_title(s, title, kicker)
     before = len(s.shapes._spTree)
     fn(s)
-    floor = (BOT - 0.62) if note else BOT
+    floor = note_floor(note) - 0.04 if note else BOT
     _rescale(s, before, DIAG_SRC, (TOP, floor))
     if note:
         _note(s, note)
@@ -577,7 +653,7 @@ def s_close(prs, day, title, recap, tomorrow):
     label(s, M + 0.30, y + 0.10, CW - 0.5, 0.28,
           'TOMORROW' if day < 6 else 'WHERE TO GO NEXT', 10, True, NAVY)
     label(s, M + 0.30, y + 0.42, CW - 0.6, h - 0.52, tomorrow,
-          fit_pt([tomorrow], 13, 10.5, 120, 4), False, INK, line=1.12)
+          fit_wrap([tomorrow], 13, 10.5, 120, 4), False, INK, line=1.12)
     return s
 
 
@@ -611,12 +687,12 @@ def s_exercise(prs, kind, title, prompt, items, reveal=None, minutes=3):
     box(s, M, y, CW, ph, fill=PALE[pale], line_col=acc, line_w=1.0)
     box(s, M, y, 0.075, ph, fill=acc)
     label(s, M + 0.32, y + 0.06, CW - 0.52, ph - 0.12, prompt,
-          fit_pt([prompt], 15, 11.5, 104, 3), True, NAVY, anchor='m', line=1.05)
+          fit_wrap([prompt], 15, 11.5, 104, 3), True, NAVY, anchor='m', line=1.05)
     y += ph + 0.26
 
     bot = BOT - (0.80 if reveal else 0)
     if items:
-        pt = fit_pt(items, 13, 10, 108, max(1, int((bot - y) / 0.36)))
+        pt = fit_wrap(items, 13, 10, 108, max(1, int((bot - y) / 0.34)))
         used = sum(0.32 + 0.21 * (len(i) // 108) + 0.12 for i in items)
         gap = spread(len(items), bot - y, used, cap=0.26)
         for i, it in enumerate(items, 1):
@@ -645,7 +721,7 @@ def _reveal_slide(prs, kind, title, prompt, reveal):
     box(s, M, TOP, CW, ph, fill=PALE['grey'])
     box(s, M, TOP, 0.06, ph, fill=GREY)
     label(s, M + 0.28, TOP + 0.05, CW - 0.5, ph - 0.10, prompt,
-          fit_pt([prompt], 12.5, 10, 112, 3), False, GREY, anchor='m', italic=True)
+          fit_wrap([prompt], 12.5, 10, 112, 3), False, GREY, anchor='m', italic=True)
 
     y = TOP + ph + 0.30
     h = BOT - y
@@ -653,8 +729,159 @@ def _reveal_slide(prs, kind, title, prompt, reveal):
     box(s, M, y, 0.08, h, fill=acc)
     label(s, M + 0.34, y + 0.18, CW - 0.6, 0.30, 'THE ANSWER', 10, True, LTBLUE)
     label(s, M + 0.60, y + 0.58, CW - 1.2, h - 0.78, reveal,
-          fit_pt([reveal], 21, 13, 78, max(2, int((h - 0.9) / 0.42))),
+          fit_wrap([reveal], 21, 13, 78, max(2, int((h - 0.9) / 0.42))),
           False, WHITE, anchor='m', line=1.26)
+    return s
+
+
+CODE_BG   = '0F2438'    # darker than NAVY so the code panel reads as a terminal
+CODE_INK  = 'E8EEF4'
+CODE_CMT  = '8FBFA8'    # comments: muted green, still AA on the dark panel
+CODE_PMT  = '7CC8EE'    # the $ prompt
+MONO      = 'Consolas'  # ships with Office on Windows and Mac
+
+
+def _code_runs(p, ln, pt):
+    """One code line as runs: prompt, body, trailing comment — each coloured."""
+    def run(text, colour, bold=False):
+        r = p.add_run(); r.text = text
+        r.font.size = Pt(pt); r.font.name = MONO; r.font.bold = bold
+        r.font.color.rgb = RGBColor.from_string(colour)
+    body, cmt = ln, ''
+    stripped = ln.lstrip()
+    if stripped.startswith('#') or stripped.startswith('//'):
+        body, cmt = '', ln
+    else:
+        for marker in ('  # ', ' # ', '  // '):
+            k = ln.find(marker)
+            if k > 0:
+                body, cmt = ln[:k], ln[k:]
+                break
+    if body.startswith('$ '):
+        run('$ ', CODE_PMT, True); body = body[2:]
+    if body:
+        run(body, CODE_INK)
+    if cmt:
+        run(cmt, CODE_CMT)
+    if not (body or cmt):
+        run(' ', CODE_INK)
+
+
+def s_code(prs, title, code, points, kicker=None, lang='', note=None,
+           split=0.60, demo=False, minutes=None):
+    """Annotated code, config or terminal session: the code on a dark panel on the
+    left, numbered explanations on the right. demo=True restyles it as a live demo."""
+    head = ('LIVE DEMO' + (f'  ·  {minutes} MIN' if minutes else '')) if demo else kicker
+    s = _blank(prs); _set_title(s, title, head)
+    lines = code.strip('\n').split('\n')
+    bot = note_floor(note)
+    cw = CW * split
+    longest = max(len(l) for l in lines)
+    # 0.60 em per character covers Consolas and the wider fallback monospace faces.
+    pt = min(13.0, (bot - TOP - 0.62) / (len(lines) * 1.20 / 72),
+             (cw - 0.42) / (max(1, longest) * 0.60 / 72))
+    pt = max(8.0, int(pt * 2) / 2)
+    avail_h = len(lines) * pt * 1.20 / 72 + 0.12
+    ph = min(bot - TOP, max(2.6, 0.34 + 0.20 + avail_h + 0.16))
+    box(s, M, TOP, cw, ph, fill=CODE_BG)
+    box(s, M, TOP, cw, 0.34, fill='1C3A57')
+    for i, c in enumerate(('E5534B', 'E3A23B', '4FB368')):
+        box(s, M + 0.16 + i * 0.20, TOP + 0.115, 0.11, 0.11, fill=c, shape=MSO_SHAPE.OVAL)
+    label(s, M + 0.85, TOP + 0.04, cw - 1.0, 0.26,
+          ('TERMINAL' if demo and not lang else lang).upper(), 9, True, '9FC0D8')
+    tb = s.shapes.add_textbox(Inches(M + 0.12), Inches(TOP + 0.44),
+                              Inches(cw - 0.22), Inches(avail_h))
+    tf = tb.text_frame; tf.word_wrap = True
+    tf.margin_left = tf.margin_right = Inches(0.08)
+    tf.margin_top = tf.margin_bottom = Inches(0.02)
+    for i, ln in enumerate(lines):
+        p = tf.paragraphs[0] if i == 0 else tf.add_paragraph()
+        p.space_after = Pt(0); p.line_spacing = 1.0
+        _code_runs(p, ln, pt)
+
+    x = M + cw + 0.30
+    w = CW - cw - 0.30
+    acc = ORANGE if demo else TEAL
+    label(s, x, TOP - 0.02, w, 0.28, 'WATCH FOR' if demo else 'WHAT TO NOTICE', 10, True, acc)
+    y = TOP + 0.36
+    avail = bot - y
+    ppt, used, heights = fit_block(points, avail, int(w * 9.4), 12.5, 9.0,
+                                   lead=0.10, head_h=0.28, sub_h=0.24, row=0.20)
+    gap = spread(len(points), avail, used, cap=0.24)
+    for i, (pnt, (hh, hs)) in enumerate(zip(points, heights), 1):
+        hd, sub = (pnt if isinstance(pnt, tuple) else (pnt, None))
+        box(s, x, y + 0.01, 0.26, 0.26, fill=acc, shape=MSO_SHAPE.OVAL)
+        label(s, x, y + 0.03, 0.26, 0.22, str(i), 9, True, WHITE, align='c')
+        label2(s, x + 0.36, y - 0.04, w - 0.38, hh + (hs + 0.05 if sub else 0), hd, sub, ppt, sub_dpt=1.6)
+        y += hh + 0.02 + (hs + 0.05 if sub else 0) + 0.10 + gap
+    if note:
+        _note(s, note)
+    return s
+
+
+def s_demo(prs, title, code, points, minutes=5, lang='', note=None, split=0.60):
+    return s_code(prs, title, code, points, lang=lang, note=note, split=split,
+                  demo=True, minutes=minutes)
+
+
+def s_flow(prs, title, steps, kicker=None, note=None):
+    """A workflow as a numbered vertical timeline. steps: [(head, sub), ...].
+    More than six steps flow into a second column, numbering continues."""
+    s = _blank(prs); _set_title(s, title, kicker)
+    bot = note_floor(note)
+    if len(steps) > 6:
+        half = (len(steps) + 1) // 2
+        cols = [(M, steps[:half], 1), (M + CW / 2 + 0.20, steps[half:], half + 1)]
+        wid = CW / 2 - 0.20
+    else:
+        cols = [(M, steps, 1)]
+        wid = CW
+    avail = bot - TOP
+    fits = [fit_block(g, avail, int((wid - 0.7) * 9.2), 13.5, 9.0, lead=0.14)
+            for _, g, _ in cols]
+    pt = min(f[0] for f in fits)
+    for (x0, group, start), (_, used, heights) in zip(cols, fits):
+        gap = spread(len(group), avail, used, cap=0.40)
+        y = TOP
+        ys = []
+        for j, (st, (hh, hs)) in enumerate(zip(group, heights)):
+            ys.append(y)
+            y += hh + (hs + 0.05 if isinstance(st, tuple) and st[1] else 0) + 0.14 + gap
+        if len(ys) > 1:
+            line(s, x0 + 0.20, ys[0] + 0.20, x0 + 0.20, ys[-1] + 0.20, 'B9CBDA', 2.0)
+        for j, (st, (hh, hs), yy) in enumerate(zip(group, heights, ys)):
+            hd, sub = (st if isinstance(st, tuple) else (st, None))
+            col = [TEAL, LTBLUE, BLUE, ORANGE, PLUM, GREEN][(start + j - 1) % 6]
+            box(s, x0, yy - 0.01, 0.40, 0.40, fill=col, shape=MSO_SHAPE.OVAL)
+            label(s, x0, yy + 0.04, 0.40, 0.30, str(start + j), 11, True, WHITE, align='c')
+            label2(s, x0 + 0.58, yy - 0.03, wid - 0.62, hh + (hs + 0.05 if sub else 0), hd, sub, pt)
+    if note:
+        _note(s, note)
+    return s
+
+
+AGENDA_STYLE = {'theory': ('THEORY', NAVY), 'exercise': ('EXERCISE', TEAL),
+                'demo': ('LIVE DEMO', ORANGE), 'practical': ('PRACTICAL', GREEN),
+                'break': ('BREAK', GREY), 'check': ('CHECK-IN', PLUM),
+                'after': ('AFTER CLASS', BLUE)}
+
+
+def s_agenda(prs, title, blocks, kicker='TODAY'):
+    """blocks: [(kind, text), ...] — kind is a key of AGENDA_STYLE."""
+    s = _blank(prs); _set_title(s, title, kicker)
+    n = len(blocks)
+    rh = min(0.52, (BOT - TOP) / n)
+    y = TOP
+    pt = fit_pt([t for _, t in blocks], 13.5, 10, 96, int((BOT - TOP) / 0.30))
+    for kind, text in blocks:
+        tag, col = AGENDA_STYLE[kind]
+        box(s, M, y + 0.06, 1.55, rh - 0.12, fill=col)
+        label(s, M, y + 0.06, 1.55, rh - 0.12, tag, 9, True, WHITE, align='c', anchor='m')
+        box(s, M + 1.55, y + 0.06, CW - 1.55, rh - 0.12,
+            fill=PALE['grey'] if kind != 'break' else WHITE, line_col='D8DEE4', line_w=0.5)
+        label(s, M + 1.75, y + 0.06, CW - 1.9, rh - 0.12, text, pt,
+              kind not in ('break',), NAVY if kind != 'break' else GREY, anchor='m')
+        y += rh
     return s
 
 
@@ -666,7 +893,7 @@ def s_myth(prs, title, pairs, kicker='MYTH vs REALITY'):
     label(s, M + w + 0.40, TOP, w, 0.28, 'WHAT IS ACTUALLY TRUE', 10, True, TEAL)
     y = TOP + 0.34
     flat = [t for pr in pairs for t in pr]
-    pt = fit_pt(flat, 12, 9.2, int(w * 8.6), max(1, int((BOT - y) / (0.52 * len(pairs)))))
+    pt = fit_wrap(flat, 12.5, 9.2, int(w * 8.6), max(1, int(2 * (BOT - y) / 0.30)))
     for myth, real in pairs:
         hh = max(0.46, 0.30 + 0.215 * (max(len(myth), len(real)) // int(w * 8.8)) + 0.16)
         box(s, M, y, w, hh, fill=PALE['plum'], line_col=PLUM, line_w=0.6)
@@ -696,11 +923,14 @@ def build(prs, spec):
            'define': s_define, 'two': s_two, 'table': s_table, 'bank': s_bank,
            'lab': s_lab, 'check': s_check, 'quote': s_quote,
            'diagram': s_diagram, 'close': s_close,
+           'code': s_code, 'demo': s_demo, 'flow': s_flow, 'agenda': s_agenda,
            'predict': lambda p, *a, **k: s_exercise(p, 'predict', *a, **k),
            'compare': lambda p, *a, **k: s_exercise(p, 'compare', *a, **k),
            'audit':   lambda p, *a, **k: s_exercise(p, 'audit', *a, **k),
            'discuss': lambda p, *a, **k: s_exercise(p, 'discuss', *a, **k),
            'myth':    s_myth}
+    global LAST_PAIRS
+    LAST_PAIRS = []
     for item in spec:
         kind, rest = item[0], item[1:]
         note = None
@@ -710,6 +940,10 @@ def build(prs, spec):
         else:
             kw = {}
         slide = fns[kind](prs, *rest, **kw)
+        LAST_PAIRS.append((slide, item))   # exercises add a reveal slide, so index != position
         if note:
             notes(slide, note)
     return prs
+
+
+LAST_PAIRS = []

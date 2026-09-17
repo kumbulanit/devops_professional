@@ -83,11 +83,8 @@ registries:
     hostPort: "5111"
 
 options:
-  k3s:
-    extraArgs:
-      # Disable k3s's bundled ServiceLB: Traefik is enough, and this avoids port conflicts.
-      - arg: --disable=servicelb
-        nodeFilters: [server:*]
+  # k3s's bundled ServiceLB stays ENABLED: it is what binds port 80/443 on every node for
+  # Traefik, so the load balancer mapping above has something to forward to.
   kubeconfig:
     updateDefaultKubeconfig: true    # write the context into ~/.kube/config
     switchCurrentContext: true       # and select it
@@ -101,7 +98,7 @@ EOF
 | `image: rancher/k3s:v1.31.2-k3s1` | **Pinned version.** A cluster built on a floating tag is not reproducible |
 | `ports … nodeFilters: [loadbalancer]` | Maps host ports to k3d's built-in load balancer, so `http://paytrack.localhost:8080` reaches Traefik |
 | `registries.create` | Stands up a local registry at `registry.localhost:5111` reachable from inside the cluster |
-| `--disable=servicelb` | k3s ships two LB mechanisms; Traefik is the one we use |
+| ServiceLB left on (no `--disable=servicelb`) | k3s's built-in load balancer gives Traefik's `LoadBalancer` Service an address by binding ports 80 and 443 on every node. The k3d load balancer forwards host 8080 to those node ports — **disable ServiceLB and `paytrack.localhost:8080` returns nothing** |
 | `updateDefaultKubeconfig` | Merges credentials into `~/.kube/config` and switches context |
 
 ```bash
@@ -144,6 +141,7 @@ kubectl get pods -n kube-system
 | `local-path-provisioner-*` | The default StorageClass; dynamically provisions PVCs (Lab 11) |
 | `metrics-server-*` | Serves pod CPU/memory. **The HPA in Lab 12 does nothing without it** |
 | `traefik-*` | The Ingress controller. Without it, Ingress objects do nothing (Lab 12) |
+| `svclb-traefik-*` | ServiceLB — one per node, holding ports 80/443 for Traefik so host port 8080 reaches it |
 | `helm-install-traefik-*` | A completed Job that installed Traefik |
 
 ```bash
@@ -405,6 +403,7 @@ kubectl config view --minify | grep namespace
 | Port 8080 already allocated | Lab 07 stack still up | `docker compose down` in the repo, then recreate the cluster |
 | Pods `Pending` with `FailedScheduling` | Quota, or genuinely insufficient resources | `kubectl describe pod <name>` and read Events |
 | `error: You must be logged in` | kubeconfig context lost | `k3d kubeconfig merge paytrack --kubeconfig-switch-context` |
+| From Lab 12 on, `curl http://paytrack.localhost:8080` gets no response; `kubectl get svc -n kube-system traefik` shows `EXTERNAL-IP <pending>` | Cluster created with `--disable=servicelb`, so nothing listens on node port 80 | Remove that argument from `k8s/k3d-cluster.yaml`, then `k3d cluster delete paytrack` and recreate; re-run the Lab 10–11 RECOVER blocks |
 
 ---
 

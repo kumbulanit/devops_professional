@@ -3,13 +3,20 @@
 Twenty labs, worked in order. **Each lab consumes what the previous one produced.** Work
 straight down the list; the numbering is the dependency order.
 
+Three more labs — **03A, 04A and 04B** — are **optional "Going Further" labs** that turn the Day 2
+*Going Further* slides into hands-on practice. Nothing depends on them; do them after class, as
+homework, or when you finish a lab early.
+
 | # | Lab | Day | Min | Produces | Consumed by |
 |---|-----|-----|-----|----------|-------------|
-| 00 | [Workstation Setup](lab-00-workstation-setup/) | 1 | 25 | Verified Ubuntu 24.04 toolchain | everything |
+| 00 | [Workstation Setup](lab-00-workstation-setup/) | 1 | 25 (+15) | Verified Ubuntu 24.04 toolchain; GitHub account + `gh` sign-in (optional: GitLab, act) | everything |
 | 01 | [Value Stream Mapping](lab-01-value-stream-mapping/) | 1 | 35 | `docs/value-stream.md`, CALMS + DORA baseline | 02, 19 |
 | 02 | [Git Fundamentals](lab-02-git-fundamentals/) | 1 | 25 | Local repo with PayTrack API | 03 |
 | 03 | [Branching & Collaboration](lab-03-branching-and-collaboration/) | 2 | 45 | GitHub repo, branch protection, merged PRs, **team Network graph** | 04, 15 |
+| 03A | [Git, Going Further](lab-03a-git-going-further/) *(optional)* | 2 | 80 | A practice repo where you use reset, reflog, bisect, revert, cherry-pick, tags, interactive rebase and safe force-pushing | — |
 | 04 | [GitHub Actions CI](lab-04-github-actions-ci/) | 2 | 35 | `ci.yml` as a required status check | 06, 15, 17 |
+| 04A | [act & Pipeline Security](lab-04a-act-and-pipeline-security/) *(optional)* | 2 | 90 | `act` locally; secret masking and script injection seen live; SHA-pinned, audited `ci.yml` with a build job; `Makefile`; tag-triggered `release.yml` | — |
+| 04B | [GitLab CI](lab-04b-gitlab-ci/) *(optional)* | 2 | 60 | GitLab account + project, `.gitlab-ci.yml`, protected `main` with *Pipelines must succeed* | — |
 | 05 | [Jenkins CI](lab-05-jenkins-ci/) | 2 | 20 | `Jenkinsfile` + a written comparison | *(comparison only)* |
 | 06 | [Docker Images](lab-06-docker-images/) | 3 | 40 | Multi-stage image on GHCR | 07, 10, 15 |
 | 07 | [Compose Stack](lab-07-docker-compose-stack/) | 3 | 35 | `compose.yaml`: proxy + API ×2 + Postgres | 08, 11 |
@@ -33,7 +40,8 @@ straight down the list; the numbering is the dependency order.
 ```
  00 setup
   └─ 01 VSM ──► 02 git ──► 03 GitHub+PRs ──► 04 CI ─────────────┐
-                                              └─ 05 Jenkins      │
+                                              ├─ 05 Jenkins      │
+                                              └─ 03A · 04A · 04B │   ← optional
                                                                  ▼
                               06 image ──► 07 compose ──► 08 net/vol
                                   │                          │

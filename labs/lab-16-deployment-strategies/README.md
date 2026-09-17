@@ -23,6 +23,16 @@ something visible.
 - Lab 12 (Ingress) and Lab 15 (pipeline). **Pause the reconciler** (`Ctrl+C` in its terminal)
   so it does not fight you.
 
+```bash
+kubectl get hpa,resourcequota -n paytrack-dev
+```
+**What this does:** a ten-second check that this lab has room to run. You are looking for the
+HPA sitting at a **low replica count** and `limits.cpu` **used well under `4`**. This lab adds
+six pods at `150m` each; if the Lab 12 Deployment is already at or near its `maxReplicas: 10`
+(`3000m` on its own), blue and green will never leave `0/3` and the ReplicaSet events will
+read `exceeded quota: paytrack-dev-quota`. Let it scale down, or park it now with
+`kubectl scale deployment/paytrack-api --replicas=0` — Step 2.2 does this anyway.
+
 🔁 **RECOVER**
 ```bash
 cd ~/devops-course/paytrack-api-team && k3d cluster start paytrack 2>/dev/null
@@ -58,6 +68,13 @@ atomically.**
 cd ~/devops-course/paytrack-api-team
 mkdir -p k8s/strategies
 
+# Use the image the cluster is ALREADY running — it is the one guaranteed to be
+# present on the nodes, whichever route you took in Lab 10.
+IMAGE_REF=$(kubectl get deployment paytrack-api -n paytrack-dev \
+  -o jsonpath='{.spec.template.spec.containers[0].image}')
+IMAGE_REF="${IMAGE_REF:-paytrack-api:1.0.0}"
+echo "Both colours will run: ${IMAGE_REF}"
+
 for COLOR in blue green; do
 cat > k8s/strategies/deployment-${COLOR}.yaml <<EOF
 apiVersion: apps/v1
@@ -85,7 +102,7 @@ spec:
         runAsUser: 10001
       containers:
         - name: paytrack-api
-          image: paytrack-api:1.0.0
+          image: ${IMAGE_REF}
           imagePullPolicy: IfNotPresent
           ports:
             - name: http
@@ -294,6 +311,25 @@ kubectl get pods -l app.kubernetes.io/name=paytrack-api --show-labels | head
 You will scale it back in Step 5. **This is not a workaround — it is the lesson**: a Service
 selects on labels, and a label you forgot about is a pod you did not intend to send traffic to.
 
+```bash
+kubectl get hpa paytrack-api
+kubectl describe hpa paytrack-api | grep -A3 Conditions:
+```
+**What this does:** checks that the HPA from Lab 12 is not about to undo what you just did.
+It is not, and the reason is worth knowing:
+
+```
+ScalingActive  False  ScalingDisabled  scaling is disabled since the replica count
+                                       of the target is zero
+```
+
+> 🔑 **An HPA will not scale a workload that is at zero replicas.** Scaling *from* zero is
+> off by default (it needs the `HPAScaleToZero` feature gate), so `minReplicas: 2` does not
+> pull the Deployment back up. Scaling to 0 is therefore the clean way to take a workload out
+> of a Service without deleting it or deleting its HPA. **Anywhere else, remember that the
+> HPA owns `.spec.replicas`** — `kubectl scale` to any *non-zero* number is a suggestion the
+> HPA will overwrite at its next 15-second tick.
+
 ### Step 2.3 — Set the ratio to 90/10 and measure it
 
 ```bash
@@ -477,8 +513,14 @@ kubectl scale deployment/paytrack-api --replicas=3        # restore the base dep
 kubectl rollout status deployment/paytrack-api --timeout=90s
 kubectl get pods -n paytrack-dev
 ```
-**What this does:** removes the strategy resources and **scales the Lab 10 deployment back to
-3** — you parked it in Step 2.2 and tomorrow's observability lab needs it running.
+**What this does:** removes the strategy resources and **scales the Lab 10 deployment back
+up** — you parked it in Step 2.2 and tomorrow's observability lab needs it running.
+
+> 🔑 **Expect to settle on 2 pods, not 3 — and that is correct.** The moment the Deployment
+> is off zero, the Lab 12 HPA starts scaling it again; with the cluster idle it computes
+> `minReplicas: 2` and takes it there within about a minute. The `--replicas=3` above only
+> has to get it *off zero*. **The HPA owns the replica count from then on** — which is
+> exactly why you never commit a `replicas:` value for a Deployment that has an HPA.
 
 ```bash
 git add k8s/strategies/
@@ -539,6 +581,11 @@ five rollback methods.
   1. The reconciler from Lab 15 is still running and reverts changes. Say "stop it" first.
   2. Insufficient CPU quota for 9+1 pods. The manifests request `25m` for this reason; if
      the quota still bites, use 5+1 and explain the arithmetic changes, not the concept.
+     **Check `kubectl get hpa` first.** The binding constraint is `limits.cpu`, not requests:
+     Lab 09's quota allows `4`, Postgres holds `500m`, and each colour's pod costs `150m`.
+     Measured on a real cluster, the whole of Part 1 and Part 2 sits at **2 of 4** — there is
+     plenty of room *provided the Lab 12 Deployment is not parked at 10 replicas*, which
+     would alone consume `3000m` and leave nothing for blue and green.
   3. The 100-request sample gives 87/13 rather than 90/10 and someone thinks it is broken.
      Explain sampling variance — and that this coarseness is precisely why Part 3 exists.
 - **Be explicit about the database limitation** in blue-green. Delegates leave believing

@@ -120,7 +120,10 @@ def create_app(config: type[Config] = Config) -> Flask:
 
     logging.basicConfig(
         level=getattr(logging, config.LOG_LEVEL, logging.INFO),
-        format='{"ts":"%(asctime)s","level":"%(levelname)s","logger":"%(name)s","msg":"%(message)s"}',
+        format=(
+            '{"ts":"%(asctime)s","level":"%(levelname)s",'
+            '"logger":"%(name)s","msg":"%(message)s"}'
+        ),
     )
     log = logging.getLogger("paytrack")
 

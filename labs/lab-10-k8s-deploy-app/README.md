@@ -35,27 +35,55 @@ cd ~/devops-course/paytrack-api-team
 export GHCR_USER=$(git remote get-url origin | sed -E 's#.*[:/]([^/]+)/[^/]+(\.git)?$#\1#' | tr 'A-Z' 'a-z')
 echo "Your GHCR namespace: ${GHCR_USER}"
 export IMAGE="ghcr.io/${GHCR_USER}/paytrack-api"
+export TAG="1.0.0"
 ```
 **What this does:** extracts your GitHub username from the remote URL with a `sed` regular
 expression, lowercases it (**GHCR paths must be lowercase** — a real and irritating gotcha),
 and builds the image reference. `export` makes the variables available to the commands below.
 
+**`TAG` is the version this lab deploys, written in exactly one place.** Every command from
+here on — and the Deployment in Step 2 — refers to `${IMAGE}:${TAG}`, so the two routes below
+cannot drift apart.
+
 ```bash
-docker pull "${IMAGE}:latest" && k3d image import "${IMAGE}:latest" -c paytrack
+docker pull "${IMAGE}:latest" \
+  && docker tag "${IMAGE}:latest" "${IMAGE}:${TAG}" \
+  && k3d image import "${IMAGE}:${TAG}" -c paytrack
 ```
-**What this does:** pulls the image your pipeline published, then **imports it directly into
-the cluster's nodes**. `k3d image import` copies the image into each node container's
-containerd store, so pods start without going out to the internet — much faster in a
-classroom, and it works offline.
+**What this does:** pulls the image your pipeline published, **re-tags the moving `:latest`
+pointer to the fixed `1.0.0` you will actually deploy**, then **imports it directly into the
+cluster's nodes**. `k3d image import` copies the image into each node container's containerd
+store, so pods start without going out to the internet — much faster in a classroom, and it
+works offline.
+
+> **`:latest` is fine for *pulling* and never right for *deploying*.** Pulling it says "give
+> me the newest build"; a manifest that references it says "run whatever happened to be
+> pushed last", so two pods started an hour apart can run different code and `rollout undo`
+> has nothing stable to return to. Course rule, Module 6 §6.5: **a deployment manifest never
+> says `:latest`.** Here you pin to `1.0.0`; from Lab 15 the pipeline pins to the commit SHA,
+> which is stronger still.
 
 > **If the pull fails** (package still private, or CI has not run), build locally instead:
 > ```bash
-> cd app && docker build -t paytrack-api:1.0.0 . && cd ..
-> k3d image import paytrack-api:1.0.0 -c paytrack
+> cd app && docker build -t "paytrack-api:${TAG}" . && cd ..
+> k3d image import "paytrack-api:${TAG}" -c paytrack
 > export IMAGE=paytrack-api
 > ```
-> **What this does:** builds and imports your local image. Everything below then works
-> unchanged with `${IMAGE}:1.0.0`.
+> **What this does:** builds and imports your local image **under the same `${TAG}`**. Only
+> `${IMAGE}` changes — everything below works unchanged, deploying `paytrack-api:1.0.0`
+> instead of the GHCR copy.
+
+✅ **Checkpoint — before you write any YAML**
+```bash
+echo "Will deploy: ${IMAGE}:${TAG}"
+docker image inspect "${IMAGE}:${TAG}" >/dev/null 2>&1 && echo "✅ built/pulled" || echo "❌ not on this machine"
+docker exec k3d-paytrack-server-0 crictl images | grep paytrack-api || echo "❌ not imported into the cluster"
+```
+**What this does:** confirms the image exists **on your machine**, then lists what the
+cluster's own container runtime actually holds — `crictl` is containerd's CLI, running
+*inside* the k3d node. **The `TAG` column must contain `1.0.0`.** A tag that is in one place
+and not the other is the single most common cause of `ImagePullBackOff` in the next five
+minutes.
 
 ---
 
@@ -71,7 +99,7 @@ metadata:
   namespace: paytrack-dev
   labels:
     app.kubernetes.io/name: paytrack-api
-    app.kubernetes.io/version: "1.0.0"
+    app.kubernetes.io/version: "${TAG}"
     app.kubernetes.io/component: api
     app.kubernetes.io/part-of: paytrack
 spec:
@@ -95,7 +123,7 @@ spec:
     metadata:
       labels:
         app.kubernetes.io/name: paytrack-api      # MUST match spec.selector.matchLabels
-        app.kubernetes.io/version: "1.0.0"
+        app.kubernetes.io/version: "${TAG}"       # same source as the image tag: they cannot drift
     spec:
       # Security: hardening from Lab 06, now expressed as Kubernetes policy.
       securityContext:
@@ -117,7 +145,7 @@ spec:
 
       containers:
         - name: paytrack-api
-          image: ${IMAGE}:latest
+          image: ${IMAGE}:${TAG}             # PINNED — never :latest (Module 6 §6.5)
           imagePullPolicy: IfNotPresent      # use the imported image; do not go to the registry
 
           ports:
@@ -177,13 +205,17 @@ spec:
 EOF
 ```
 
-> ⚠️ Note this heredoc uses **`<<EOF`** (unquoted) so that `${IMAGE}` is substituted. Every
-> other heredoc in this course uses `<<'EOF'` to prevent substitution. The difference matters.
+> ⚠️ Note this heredoc uses **`<<EOF`** (unquoted) so that `${IMAGE}` and `${TAG}` are
+> substituted. Every other heredoc in this course uses `<<'EOF'` to prevent substitution. The
+> difference matters — and it means **the shell that writes this file must be the one that ran
+> Step 1.** If you come back in a new terminal, re-run the two `export` lines first, or you
+> will write `image: :` into the manifest.
 
 **The decisions worth understanding:**
 
 | Field | Why it is there |
 |---|---|
+| `image: ${IMAGE}:${TAG}` | **A pinned tag.** Both routes in Step 1 produce `1.0.0`, so the manifest matches what was imported whichever one you took. Module 6 §6.5 and the Lab 19 platform check both reject `:latest` |
 | `spec.selector` | **Immutable.** Binds the Deployment to its pods. Changing it later requires deleting and recreating the Deployment |
 | `maxUnavailable: 0` | The line that buys zero downtime. It requires spare capacity **and an accurate readiness probe** |
 | `revisionHistoryLimit: 5` | Old ReplicaSets are what `rollout undo` scales back up. Set to 0 and you cannot roll back |
@@ -451,6 +483,7 @@ git commit -m "feat(k8s): deploy PayTrack API with probes, limits and a PDB
   dependency so a DB blip cannot cause a restart storm
 - non-root (uid 10001), read-only rootfs, all capabilities dropped
 - requests/limits set (also the prerequisite for the HPA in Lab 12)
+- image pinned to 1.0.0, never :latest
 - topology spread across nodes; PodDisruptionBudget minAvailable=2"
 git push -u origin HEAD
 ```
@@ -484,7 +517,8 @@ kubectl get pods -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.node
 
 | Symptom | First command | Usual cause |
 |---|---|---|
-| `ImagePullBackOff` | `kubectl describe pod <p>` | Wrong name/tag, or a private registry with no `imagePullSecret` |
+| `ImagePullBackOff` | `kubectl describe pod <p>` | Wrong name/tag, or a private registry with no `imagePullSecret`. Compare the tag in the pod spec with what Step 1 imported — they must match exactly |
+| `image: :` in the manifest | `grep image: k8s/base/deployment.yaml` | `${IMAGE}`/`${TAG}` were unset: a new terminal that skipped Step 1's `export` lines |
 | `CrashLoopBackOff` | `kubectl logs <p> --previous` | App exits on start — bad config or missing env var |
 | `Pending` | `kubectl describe pod <p>` | Insufficient resources, quota, or an unbound PVC |
 | Running but `0/1 READY` | `kubectl describe pod <p>` | Readiness probe failing |
@@ -511,9 +545,15 @@ deletion, node failure and a bad deployment.
 - **The three things that go wrong:**
   1. GHCR path case. GitHub usernames may be mixed case; GHCR paths must be lowercase. The
      `tr 'A-Z' 'a-z'` in Step 1 handles it — mention it, because they will hit it manually.
-  2. Image not imported → `ImagePullBackOff` everywhere. Check `k3d image import` ran.
+  2. Image not imported, or imported under a different tag than the manifest asks for →
+     `ImagePullBackOff` everywhere. Check `k3d image import` ran, and that it imported
+     `${IMAGE}:${TAG}`. The Step 1 checkpoint exists to catch exactly this.
   3. Someone edits `spec.selector` and gets `field is immutable`. Excellent teaching moment
      about why labels and selectors are a contract.
+- **Why the extra `docker tag`.** The registry's `:latest` is a moving pointer; the manifest
+  must name something fixed. Re-tagging it to `1.0.0` locally is the classroom stand-in for
+  what Lab 15's pipeline does properly — deploy the immutable commit-SHA tag. If someone asks
+  "why not just deploy `:latest`?", that is the answer, and Lab 19's platform check enforces it.
 - **Slow down on liveness vs readiness.** Ask: "your liveness probe checks the database, and
   the database has a 30-second blip. What happens to your 40 pods?" Let them work it out.
 - **Debrief question:** "Your service currently runs on VMs. Which of the three failures you

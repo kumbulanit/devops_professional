@@ -456,11 +456,82 @@ kubectl get networkpolicy
 any pod in any namespace can reach your database. These three policies establish
 default-deny, then allow exactly what is needed.
 
-> ⚠️ **NetworkPolicy requires a CNI that enforces it** (Calico, Cilium). k3s's default
-> Flannel **does not**, so on this cluster the objects are accepted but not enforced. Write
-> them anyway — they are correct, they are reviewed, and they take effect the moment the
-> platform supports them. Say this plainly rather than letting delegates believe they are
-> protected.
+> 🔑 **Who actually enforces this?** A NetworkPolicy is only a declaration — something on every
+> node has to turn it into packet filtering, and not every network plugin does. **k3s, and
+> therefore your k3d cluster, includes an embedded network policy controller** (built on
+> kube-router's netpol library) that is **on by default**. So on this cluster these policies are
+> enforced the moment you apply them, and the next step proves it.
+>
+> On any other platform, check before you rely on it: Calico and Cilium enforce NetworkPolicy,
+> but plain Flannel with no policy controller **accepts the objects and enforces nothing** —
+> which looks exactly like success until someone tests it.
+
+### Prove the policy blocks it
+
+```bash
+docker logs k3d-paytrack-server-0 2>&1 | grep -m1 "network policy controller"
+```
+**What this does:** reads the k3s server's log (the "node" is a Docker container, so its log is
+a `docker logs` away) and finds the line where k3s started its policy controller — something
+like `Starting network policy controller version v2.2.1`. That is the component that will
+enforce the policies you just applied.
+
+```bash
+kubectl run np-probe --image=postgres:16-alpine --restart=Never \
+  --overrides='{"spec":{"containers":[{"name":"np-probe","image":"postgres:16-alpine","command":["sleep","600"],"resources":{"requests":{"cpu":"10m","memory":"16Mi"}}}]}}'
+kubectl wait --for=condition=Ready pod/np-probe --timeout=90s
+```
+**What this does:** starts a throwaway pod that is **not** labelled `paytrack-api` — so no
+allow rule applies to it. It uses the `postgres` image only because that image contains
+`pg_isready`, a one-line test of whether a database port answers; `sleep 600` keeps it alive for
+ten minutes. The explicit requests keep the ResourceQuota happy, as in Lab 09's smoke test.
+A `PodSecurity "restricted"` **warning** is expected: the probe is deliberately not hardened,
+and the namespace only *warns* on that profile.
+
+```bash
+kubectl exec np-probe -- pg_isready -h postgres -p 5432 -t 5; echo "exit code: $?"
+```
+**What this does:** asks whether anything answers on `postgres:5432` from the unlabelled pod.
+**Expect `postgres:5432 - no response` and exit code 2** (kubectl also prints
+`command terminated with exit code 2`). The DNS name still resolves — the
+connection is silently dropped by `default-deny-ingress` before it reaches the database. Run the
+same command before applying the policies and it prints `accepting connections`.
+
+```bash
+kubectl exec deploy/paytrack-api -- python -c "import socket; socket.create_connection(('postgres', 5432), 5); print('api -> postgres: allowed')"
+kubectl exec np-probe -- wget -T 5 -qO- http://paytrack-api/health; echo
+```
+**What this does:** tests the two paths that **should** stay open:
+- a `paytrack-api` pod opening a TCP connection to the database — allowed by
+  `postgres-allow-from-api`;
+- the probe calling the API through its Service — allowed by `api-allow-http`. The Service
+  listens on 80, but policy is evaluated at the **pod**, where the port is 8080.
+
+A policy that only blocks proves nothing; one that blocks *and* lets the right traffic through
+proves it is precise.
+
+✅ **Checkpoint**
+
+| From | To | Expected |
+|---|---|---|
+| `np-probe` (no label) | `postgres:5432` | **blocked** — `no response`, exit code 2 |
+| `paytrack-api` pod | `postgres:5432` | **allowed** — `api -> postgres: allowed` |
+| `np-probe` | `paytrack-api` Service | **allowed** — `{"status":"ok",…}` |
+
+```bash
+kubectl delete pod np-probe
+```
+**What this does:** removes the probe.
+
+> **What NetworkPolicy does not cover.** `kubectl port-forward` and `kubectl exec` travel through
+> the API server and the kubelet, not the pod network — which is why Step 4's port-forward still
+> works, and why `kubectl port-forward pod/postgres-0 5432` would still reach the database.
+> Those paths are governed by **RBAC**, not by NetworkPolicy. Both controls are needed.
+>
+> **Keep this in mind for later labs.** Default-deny means exactly that: any new pod in
+> `paytrack-dev` that must *receive* traffic needs its own allow rule. The later labs only send
+> traffic to `paytrack-api` on port 8080 — Traefik from `kube-system` (Labs 12 and 16) and
+> Prometheus from `monitoring` (Lab 18) — which `api-allow-http` already permits.
 
 ---
 
@@ -512,7 +583,8 @@ kill %1 2>/dev/null
 
 Configuration and secrets fully externalised; PostgreSQL running on durable storage that
 survives pod deletion; the API reaching it by Service name with a connection string assembled
-at runtime; network policy written; and an accurate, evidence-based understanding of what a
+at runtime; network policy written and proven to block an unlabelled pod; and an accurate,
+evidence-based understanding of what a
 Kubernetes Secret does and does not protect.
 
 **Next:** [Lab 12 — Ingress and Autoscaling](../lab-12-k8s-ingress-scaling/README.md)
@@ -531,8 +603,15 @@ Kubernetes Secret does and does not protect.
      `kubectl exec deploy/paytrack-api -- printenv DATABASE_URL`.
   3. Step 6 takes 60+ seconds and people conclude it failed. Warn them about the kubelet
      sync period before they start.
-- **Be explicit about NetworkPolicy not being enforced by Flannel.** Delegates who miss this
-  will go home believing their k3s cluster is segmented.
+- **Run the `np-probe` check on the projector.** A database that silently drops a connection
+  from an unlabelled pod is the moment segmentation stops being theoretical. Then make the
+  wider point: it works here because **k3s embeds a network policy controller** (kube-router's
+  netpol library, on by default). The same YAML on a cluster running plain Flannel with no policy
+  controller would be accepted and enforce nothing — so "we have NetworkPolicies" is not
+  evidence until someone has tested one. Ask who has ever tested theirs.
+- **If a delegate reports that something stopped working after Step 7**, the first question is
+  whether a pod that must receive traffic lacks the `app.kubernetes.io/name` label an allow rule
+  matches. That is default-deny doing its job, not a bug.
 - **Debrief question:** "Where do your production database credentials live right now, and
   who can read them? List every place — the answer is usually longer than expected."
 </details>

@@ -518,8 +518,11 @@ for pod in $(kubectl get pods -n "$NS" -o jsonpath='{.items[*].metadata.name}');
   chk "no privilege escalation" "$(kubectl get pod "$pod" -n "$NS" -o jsonpath='{.spec.containers[0].securityContext.allowPrivilegeEscalation}' | sed 's/false/true/')"
   chk "memory limit set"      "$(kubectl get pod "$pod" -n "$NS" -o jsonpath='{.spec.containers[0].resources.limits.memory}')"
   IMG=$(kubectl get pod "$pod" -n "$NS" -o jsonpath='{.spec.containers[0].image}')
-  case "$IMG" in *:latest|*[!:]) printf '  ✗ image is not pinned: %s\n' "$IMG"; fail=1 ;;
-                 *) printf '  ✔ image pinned: %s\n' "$IMG" ;; esac
+  case "${IMG##*/}" in
+    *:latest)  printf '  ✗ image is not pinned (:latest): %s\n' "$IMG"; fail=1 ;;
+    *@sha256:*|*:*) printf '  ✔ image pinned: %s\n' "$IMG" ;;
+    *)         printf '  ✗ image has no tag: %s\n' "$IMG"; fail=1 ;;
+  esac
 done
 exit "$fail"
 EOF

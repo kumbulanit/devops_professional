@@ -60,7 +60,14 @@ kubectl config set-context --current --namespace=paytrack-dev && kubectl apply -
 ```bash
 cd ~/devops-course/paytrack-api-team
 mkdir -p k8s/overlays/dev
-cat > k8s/overlays/dev/image.yaml <<'EOF'
+
+# Seed the overlay with the image that is ALREADY running, whatever Lab 10 left there.
+CURRENT_IMAGE=$(kubectl get deployment paytrack-api -n paytrack-dev \
+  -o jsonpath='{.spec.template.spec.containers[0].image}')
+CURRENT_IMAGE="${CURRENT_IMAGE:-paytrack-api:1.0.0}"
+echo "Seeding desired state with the live image: ${CURRENT_IMAGE}"
+
+cat > k8s/overlays/dev/image.yaml <<EOF
 # ═══════════════════════════════════════════════════════════════════════════
 #  DESIRED STATE — the single file CI updates and the reconciler reads.
 #  Everything the cluster runs is determined by what is committed here.
@@ -76,12 +83,23 @@ spec:
     spec:
       containers:
         - name: paytrack-api
-          image: paytrack-api:1.0.0     # ← CI rewrites this line, and only this line
+          image: ${CURRENT_IMAGE}     # ← CI rewrites this line, and only this line
 EOF
+tail -3 k8s/overlays/dev/image.yaml
 ```
 **What this does:** creates a **strategic-merge patch**. It is not a whole Deployment — it
 names the object and the one field to change. `kubectl patch` merges it into the live object,
 so the base manifest stays authoritative for everything else.
+
+> **Why read the live image instead of typing one in.** Lab 10 deployed either
+> `ghcr.io/<you>/paytrack-api:1.0.0` or the locally-built `paytrack-api:1.0.0`, depending on
+> which route you took. **Desired state must start as a true description of current state**,
+> or the reconciler's very first pass is a rollout to an image the cluster has never seen —
+> it would fail, roll back, and teach you nothing. A real GitOps onboarding does exactly
+> this: capture what is running, commit it, and only then start changing it.
+>
+> ⚠️ This heredoc is **`<<EOF`** (unquoted) so `${CURRENT_IMAGE}` is substituted. Check the
+> line it printed actually contains a tag before you carry on.
 
 ---
 

@@ -522,6 +522,33 @@ Three prerequisites people forget:
    No request, no percentage, no scaling.
 3. `minReplicas` ≥ 2 for anything that must stay available.
 
+### Choosing the metric — where most HPAs go wrong
+
+A metric is only usable for autoscaling if it **rises when demand rises _and falls when
+demand falls_**. That second half is the one people skip.
+
+| Signal | Usable? | Why |
+|---|---|---|
+| **Requests per second** / queue depth | **Best** | Directly proportional to demand, in both directions. Needs the Prometheus Adapter |
+| **CPU utilisation** | **Good** | The default for a reason: it tracks work done, and it drops the moment work stops |
+| **Memory utilisation** | **Almost never** | Rises with load but does **not fall** afterwards. Runtimes with their own heap (JVM, Python, Go) hold freed memory rather than returning it to the OS |
+
+Memory as a scaling metric fails in a specific and instructive way. Say a pod requests
+`64Mi` and genuinely idles at `66Mi` — interpreter, imported modules, caches:
+
+```
+memory target 80%,  actual 103%  →  desired = ceil(3 × 103 ÷ 80) = 4 …then 5, 7, 9, 10
+```
+
+Every new pod reports the same 103 %, so the recommendation never comes down. And because
+**the HPA takes the _highest_ recommendation across all its metrics**, adding memory
+alongside CPU does not make scaling "safer" — it silently overrides CPU and pins the
+workload at `maxReplicas` with no traffic at all. Downstream, that workload eats the
+namespace `ResourceQuota` and the *next* deployment is the thing that fails.
+
+> **Memory belongs in `requests` and `limits`** — scheduling and OOM protection — **not in
+> an HPA.** If you want to react to memory, alert on it; do not autoscale on it.
+
 ### The other two scalers
 
 | Scaler | Adjusts | Note |

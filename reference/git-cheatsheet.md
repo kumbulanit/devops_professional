@@ -1,5 +1,8 @@
 # Git Reference
 
+> One-page reminders. For what each command **means**, with real output and when *not* to use
+> it, see the **[Git Command Guide](../docs/theory/git-command-guide.md)**.
+
 ## Setup
 ```bash
 git config --global user.name "Name"           # stamped into every commit
@@ -60,6 +63,42 @@ git fetch --prune                           # drop remote-tracking refs that are
 | `git merge --squash b` | One combined commit. **The GitHub Flow default** |
 | `git rebase main` | Replay your commits on a new base. **Your own branch only** |
 | `git push --force-with-lease` | Force-push that aborts if the remote moved |
+
+## Rebase — replay your commits on a new base (new SHAs)
+```bash
+# Bring YOUR branch up to date with main
+git fetch origin
+git rebase origin/main                 # replay your commits on top of the latest main
+python -m pytest -q                    # the replayed commits are untested - test them
+git push --force-with-lease            # a plain push is rejected; do NOT git pull here
+
+# When it stops for a conflict (HEAD = main side, >>>>>>> = YOUR commit)
+git status                             # which commit, which files
+git add <file>                         # after fixing the file
+git rebase --continue                  # next commit (never git commit mid-rebase)
+git rebase --skip                      # drop this commit (main already has the change)
+git rebase --abort                     # back to exactly where you started
+
+# Tidy before review
+git rebase -i main                     # plan is OLDEST first: pick · reword · edit · squash · fixup · drop
+git commit --fixup <sha>               # mark a follow-up for a commit...
+git rebase -i --autosquash main        # ...and let git line it up as fixup
+
+# Keep your own branch current without a merge commit
+git pull --rebase
+
+# Undo a rebase
+git reset --hard ORIG_HEAD             # straight after the rebase
+git reflog                             # later: find the line below "rebase (start)"
+git reset --hard HEAD@{n}
+```
+
+| Rebase? | When |
+|---|---|
+| ✅ Yes | Your own branch (pushed or not), main has moved on · tidying wip commits before review · `pull --rebase` on your own branch |
+| ❌ No — merge | Anyone else has pulled or pushed to the branch · review is under way · `main`, `develop`, `release/*` |
+
+> **Rebase to tidy and update YOUR work. Merge to combine SHARED work.**
 
 ## Conflicts
 ```bash
