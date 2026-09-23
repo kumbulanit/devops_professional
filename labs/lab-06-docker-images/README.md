@@ -517,6 +517,18 @@ trivy image --severity CRITICAL --quiet paytrack-api:1.0.0 | tail -3
 
 ---
 
+## ⭐ Advanced — optional, in this folder
+
+The image is small and CI publishes it. If you want to go further with **builds**, the page and
+its slides are beside this one — nothing on Day 4 onwards depends on them.
+
+| In this folder | What it is | Time | Needs |
+|---|---|---|---|
+| **[README-06A — Builds in Depth](README-06A-builds-in-depth.md)** | Time three rebuilds and see exactly what each invalidates; read `docker history`; keep the pip cache in a BuildKit cache mount without shipping it; build one stage with `--target`; pin the base image by digest and pass real build metadata; watch a HEALTHCHECK turn a container `(healthy)`; build multi-architecture with buildx | 60 min, nine parts | Docker, ~3 GB disk. The multi-arch part is skippable |
+| **`Lab06A_Advanced_Builds.pptx`** | The 11 slides behind it: what the cache keys on, BuildKit, cache mounts, digests and attestations | Read it first | PowerPoint |
+
+---
+
 ## 🧩 Stretch (homework)
 
 1. **Try distroless.** Change stage 2 to `gcr.io/distroless/python3-debian12`. Measure the

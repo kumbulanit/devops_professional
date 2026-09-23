@@ -84,8 +84,8 @@ prompt.
 sudo ~/devops-course/course-material/scripts/install-ubuntu24.sh
 ```
 **What this does:** runs the installer script as administrator (so it may install software). It
-prints a line per tool and takes 10–20 minutes the first time.
-**What this does:** installs and verifies **everything the six days need** — base packages
+prints a line per tool and takes 10–20 minutes the first time. It installs and verifies
+**everything the six days need** — base packages
 (including `ss`, `lsof`, `dig` and `nc`, which the labs use), Docker + Compose, the GitHub CLI,
 kubectl, k3d, Helm, kubeseal, Terraform, Ansible, Trivy, Gitleaks, Syft, pre-commit and **act** (which runs
 GitHub Actions workflows on your machine, for Lab 04A). It also
@@ -778,7 +778,7 @@ The exit code is 1 even when it works — that is normal.
 
 If you will do Lab 04B, **open the account now**: GitLab.com may ask new users to verify their
 identity with a phone number or a card (checked, not charged) before they can run pipelines, and
-that can take time. Follow **[Lab 04B, Part 1](../lab-04b-gitlab-ci/README.md#part-1--open-a-gitlab-account-and-secure-it-10-min)**:
+that can take time. Follow **[Lab 04B, Part 1](../lab-04-github-actions-ci/README-04B-gitlab-ci.md#part-1--open-a-gitlab-account-and-secure-it-10-min)**:
 sign up, verify, turn on two-factor authentication, add the SSH key from Step 8.2, and run
 `ssh -T git@gitlab.com`.
 

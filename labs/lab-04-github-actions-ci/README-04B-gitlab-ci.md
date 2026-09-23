@@ -5,6 +5,8 @@
 | **Day** | 2 — **optional**, after class or as homework |
 | **Duration** | About 60 minutes (plus 10 if you still need a GitLab account) |
 | **Module** | 2 — Version Control and CI (the *Going Further* slides, section D) |
+| **Slides** | `Lab04AB_Advanced_Pipelines.pptx` — in this folder, 18 slides, read it first |
+| **Parent lab** | [Lab 04 — Build a CI Pipeline with GitHub Actions](README.md) |
 | **You will produce** | A GitLab account, a `paytrack-api` project with `.gitlab-ci.yml`, a protected `main` that only accepts merge requests with a green pipeline |
 | **Feeds into** | Nothing — this is a **comparison** lab. GitHub remains the course's main platform |
 

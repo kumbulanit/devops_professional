@@ -593,3 +593,402 @@ $ docker run paytrack-api
   'control plane reconciles desired and actual state, why the three probes decide whether a database blip '
   'becomes an outage — and how Services, Ingress, ConfigMaps, Secrets and storage fit together.'),
 ]
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# DAY 3 — GOING FURTHER (optional reading, not taught in the session)
+#
+# Three sections, each with a hands-on lab that lives inside the lab folder it
+# extends:  A → Lab 06A,  B → Lab 07A,  C → Lab 08A.
+# ═════════════════════════════════════════════════════════════════════════════
+
+DAY3_EXTRA = [
+  ('title', 3,
+   'Day 3 — Going Further',
+   'Optional reading, for after class — once images, Compose and volumes feel comfortable',
+   ['A: builds in depth — the cache, BuildKit, multi-architecture, provenance',
+    'B: Compose in depth — merging, profiles, health gating, limits',
+    'C: runtime hardening and troubleshooting — capabilities, limits, the network path'],
+   'Not taught in the session — read it, then practise it in Labs 06A, 07A and 08A'),
+
+  # ── A ──────────────────────────────────────────────────────────────────────
+  ('section', 'A', 'Builds in Depth',
+   'What the build cache actually keys on, and how to control it',
+   ['Reading a build: BuildKit and --progress=plain',
+    'docker history — where the megabytes went',
+    'Cache invalidation, cache mounts and --target',
+    'Multi-architecture images, digests and attestations']),
+
+  ('code', 'Watch the build, not the spinner',
+   'docker build --progress=plain -t paytrack-api:plain app/\n'
+   '\n'
+   '#1 [internal] load build definition from Dockerfile\n'
+   '#5 [builder 2/4] COPY requirements.txt .\n'
+   '#6 [builder 3/4] RUN pip install -r requirements.txt\n'
+   '#6 CACHED                      <-- the line that decides your build time\n'
+   '#9 [stage-1 4/5] COPY --from=builder /opt/venv /opt/venv',
+   [('BuildKit is the builder', 'Parallel stages, better caching, and secrets that never land in a layer'),
+    ('--progress=plain prints every line', 'The default tidy view hides the command output you need when a build fails'),
+    ('CACHED is the word to look for', 'A build that says CACHED on the dependency step is a build nobody waits for'),
+    ('Each numbered step is one layer', 'The numbers tell you the order BuildKit actually chose')],
+   {'kicker': 'GOING FURTHER · OPTIONAL', 'lang': 'bash  ·  real output', 'split': 0.58}),
+
+  ('code', 'docker history — where the megabytes went',
+   'docker history paytrack-api:naive --no-trunc --format \\\n'
+   '  "table {{.Size}}\\t{{.CreatedBy}}"\n'
+   '\n'
+   'SIZE      CREATED BY\n'
+   '412MB     RUN pip install -r requirements.txt\n'
+   '298MB     RUN apt-get install -y build-essential\n'
+   '  1.1kB   COPY . .\n'
+   '  0B      ENV PYTHONUNBUFFERED=1',
+   [('Every line is a layer, and layers only add', 'Deleting a file in a later layer hides it; it still ships'),
+    ('Install and clean in ONE RUn', 'apt-get install && rm -rf /var/lib/apt/lists/* must be one instruction'),
+    ('Build tools are the usual culprit', 'They belong in the builder stage, never in the final image'),
+    ('Compare two tags side by side', 'The difference IS your Dockerfile review')],
+   {'kicker': 'GOING FURTHER · OPTIONAL', 'lang': 'bash  ·  real output', 'split': 0.58}),
+
+  ('table', 'What invalidates the cache — and what does not',
+   ['Change', 'Rebuilds from', 'Cost'],
+   [['Edit app/src/app.py', 'the COPY that brings in the source', 'Seconds — if the source COPY is LAST'],
+    ['Edit requirements.txt', 'the dependency install, and everything after it', 'Minutes — unavoidable, and correct'],
+    ['Change a build argument', 'the first instruction that uses it', 'Depends where ARG is consumed'],
+    ['New base image digest (docker build --pull)', 'everything', 'Full rebuild — do it on a schedule, not by accident'],
+    ['Reorder two independent RUN lines', 'the first line you moved', 'Free to avoid: put the stable things first'],
+    ['Touch a file that .dockerignore excludes', 'nothing', 'Zero — the file never entered the context']],
+   'MODULE 3 §3.3',
+   {'note': ('THE ORDERING RULE',
+             'Copy the dependency manifest, install, and only then copy the source. Every Dockerfile in '
+             'this course does that, and it is the single biggest build-time win available.'),
+    'widths': [3.8, 3.4, 3.1]}),
+
+  ('code', 'Cache mounts — keep the package cache between builds',
+   '# syntax=docker/dockerfile:1\n'
+   'FROM python:3.12-slim AS builder\n'
+   'COPY requirements.txt .\n'
+   'RUN --mount=type=cache,target=/root/.cache/pip \\\n'
+   '    pip install --prefix=/opt/venv -r requirements.txt\n'
+   '\n'
+   '# and for a secret that must NOT become a layer:\n'
+   'RUN --mount=type=secret,id=netrc,target=/root/.netrc \\\n'
+   '    pip install -r private-requirements.txt',
+   [('The syntax line is required', 'It selects the Dockerfile frontend that understands --mount'),
+    ('A cache mount is not a layer', 'Wheels survive between builds; nothing is added to the image'),
+    ('Even a changed requirements.txt is then fast', 'You re-resolve, but you do not re-download'),
+    ('type=secret is how credentials enter a build', 'Passed with --secret; never written into the image')],
+   {'kicker': 'GOING FURTHER · OPTIONAL', 'lang': 'Dockerfile', 'split': 0.60}),
+
+  ('code', 'One Dockerfile, many outputs: --target and --platform',
+   '# stop at the builder stage, for a debug shell\n'
+   'docker build --target builder -t paytrack-api:builder app/\n'
+   '\n'
+   '# build for a machine that is not yours\n'
+   'docker buildx build --platform linux/amd64,linux/arm64 \\\n'
+   '  -t ghcr.io/<you>/paytrack-api:1.0.0 --push app/\n'
+   '\n'
+   'docker buildx imagetools inspect ghcr.io/<you>/paytrack-api:1.0.0',
+   [('--target builds part of the file', 'The fastest way to inspect what the builder stage produced'),
+    ('Multi-arch needs buildx and a registry', 'A multi-platform result cannot be --load-ed into the local store'),
+    ('Your laptop may not be your servers', 'Apple silicon builds arm64 by default; most CI runners are amd64'),
+    ('imagetools inspect shows the manifest list', 'One tag, one digest per architecture underneath it')],
+   {'kicker': 'GOING FURTHER · OPTIONAL', 'lang': 'bash', 'split': 0.60}),
+
+  ('code', 'Say what the image is: labels, healthcheck, digest pinning',
+   'FROM python:3.12-slim@sha256:6f7e2b...      # pinned by DIGEST, not by tag\n'
+   '\n'
+   'LABEL org.opencontainers.image.source="https://github.com/<you>/paytrack-api" \\\n'
+   '      org.opencontainers.image.revision="$GIT_SHA" \\\n'
+   '      org.opencontainers.image.licenses="MIT"\n'
+   '\n'
+   'HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \\\n'
+   '  CMD python -c "import urllib.request;urllib.request.urlopen(\'http://localhost:8080/health\')"',
+   [('A digest cannot be moved', 'Pin the base image where a rebuild must produce the same thing'),
+    ('image.source links the image to the repo', 'GHCR shows the package against the repository automatically'),
+    ('image.revision answers "what is running?"', 'One command from a running container back to a commit'),
+    ('HEALTHCHECK is what Compose gates on', 'Without it, depends_on can only wait for "started"')],
+   {'kicker': 'GOING FURTHER · OPTIONAL', 'lang': 'Dockerfile', 'split': 0.62}),
+
+  ('predict', 'Which change makes the next build slow?',
+   'Your Dockerfile copies requirements.txt, installs, then copies the source. You make each of these '
+   'changes, one at a time, and rebuild.',
+   ['Fix a typo in a docstring in app/src/app.py.',
+    'Add one package to requirements.txt.',
+    'Run the same build again on a colleague\'s laptop, for the first time.',
+    'Which of the three is slow, and which is slow only once?'],
+   'The docstring rebuilds only the source COPY and everything after it: seconds. The new package '
+   're-runs pip install: minutes, and correctly so. The colleague\'s first build is slow because their '
+   'cache is empty — a cache mount or a registry cache makes the second one fast. You measure all three '
+   'in Lab 06A.',
+   3),
+
+  ('lab', '06A',
+   'Builds in Depth — cache, BuildKit, multi-arch',
+   'Take the image you built in Lab 06 apart: measure the cache, keep it with a cache mount, read the '
+   'layers, and build for an architecture that is not yours.',
+   ['Time three rebuilds and see exactly what each one invalidates',
+    'Read docker history and find the megabytes',
+    'Add a cache mount and measure the difference again',
+    'Build a --target stage for debugging',
+    'Pin the base image by digest, add OCI labels and a HEALTHCHECK',
+    'Build multi-architecture with buildx and inspect the manifest list'],
+   'A Dockerfile whose builds are fast for the right reasons, and an image that says what it is',
+   {'kicker': 'GOING FURTHER  ·  HANDS-ON',
+    'speaker': 'Lab guide: labs/lab-06-docker-images/README-06A-builds-in-depth.md. Optional; about 60 '
+               'minutes; needs Docker and the image from Lab 06. The multi-arch part needs a registry '
+               'login, and is written so it can be skipped.'}),
+
+  # ── B ──────────────────────────────────────────────────────────────────────
+  ('section', 'B', 'Compose in Depth',
+   'The file you run is not always the file you wrote',
+   ['docker compose config — see what was actually merged',
+    'Override files, profiles and environments',
+    'Health-gated startup, restart policies and limits',
+    'One-off commands, scaling and logs']),
+
+  ('code', 'The merged file is the truth',
+   'docker compose config            # the file Compose will actually run\n'
+   'docker compose config --services\n'
+   '\n'
+   '# base, then the override, then a per-environment file:\n'
+   'docker compose -f compose.yaml -f compose.override.yaml \\\n'
+   '               -f compose.uat.yaml config',
+   [('compose.override.yaml is picked up automatically', 'That is why "it works for me" and CI can differ'),
+    ('Later -f wins, key by key', 'Scalars replace; most lists append — check with config, do not assume'),
+    ('config resolves variables too', 'You see the real values, which is also how secrets leak into a screenshot'),
+    ('Run it in CI before you deploy', 'A merged file that does not parse should never reach an environment')],
+   {'kicker': 'GOING FURTHER · OPTIONAL', 'lang': 'bash', 'split': 0.58}),
+
+  ('code', 'Profiles — one file, several stacks',
+   'services:\n'
+   '  api:        { image: paytrack-api:1.0.0 }\n'
+   '  db:         { image: postgres:16-alpine }\n'
+   '  pgadmin:\n'
+   '    image: dpage/pgadmin4\n'
+   '    profiles: ["tools"]        # only starts when asked for\n'
+   '  loadtest:\n'
+   '    image: grafana/k6\n'
+   '    profiles: ["perf"]\n'
+   '\n'
+   'docker compose up -d                  # api + db only\n'
+   'docker compose --profile tools up -d  # adds pgadmin',
+   [('A service with a profile is opt-in', 'Developer tooling stops leaking into the default stack'),
+    ('Profiles beat commenting services out', 'The file stays one file, and git stops showing churn'),
+    ('COMPOSE_PROFILES sets it per machine', 'An environment variable, so CI and a laptop can differ safely'),
+    ('Name them after intent', 'tools, perf, debug — not "extra1"')],
+   {'kicker': 'GOING FURTHER · OPTIONAL', 'lang': 'compose.yaml  ·  bash', 'split': 0.60}),
+
+  ('code', 'Start in the right order — actually',
+   'services:\n'
+   '  db:\n'
+   '    image: postgres:16-alpine\n'
+   '    healthcheck:\n'
+   '      test: ["CMD-SHELL", "pg_isready -U paytrack"]\n'
+   '      interval: 5s\n'
+   '      timeout: 3s\n'
+   '      retries: 10\n'
+   '      start_period: 10s\n'
+   '  api:\n'
+   '    depends_on:\n'
+   '      db: { condition: service_healthy }   # not just "started"\n'
+   '    restart: unless-stopped',
+   [('Plain depends_on waits for STARTED', 'Lab 07 shows the crash that comes from trusting it'),
+    ('service_healthy waits for the healthcheck', 'The container must define one, or there is nothing to wait for'),
+    ('start_period stops early failures counting', 'Slow first-start databases stop being marked unhealthy'),
+    ('restart: unless-stopped is the sane default', 'Survives a reboot; respects a deliberate docker stop')],
+   {'kicker': 'GOING FURTHER · OPTIONAL', 'lang': 'compose.yaml', 'split': 0.60}),
+
+  ('table', 'Operating a stack: the commands people miss',
+   ['Command', 'What it does', 'When you want it'],
+   [['docker compose run --rm api pytest', 'A one-off container, removed afterwards', 'Tests and migrations — not `exec`'],
+    ['docker compose up -d --scale api=3', 'Three API containers behind the proxy', 'Seeing load balancing on a laptop'],
+    ['docker compose logs -f --since 10m api', 'Follow one service, recent lines only', 'Incident triage'],
+    ['docker compose ps --format json', 'Machine-readable state', 'Scripting a smoke test'],
+    ['docker compose stop / start', 'Keeps the containers and their data', 'Pausing work for the day'],
+    ['docker compose down', 'Removes containers and networks — keeps named volumes', 'A clean restart'],
+    ['docker compose down -v', '🔴 Also deletes named volumes', 'Only when you mean to lose the database']],
+   'MODULE 3 §3.5',
+   {'note': ('THE ONE TO BE CAREFUL WITH',
+             '`down -v` is the command that deletes the data. It is one character away from the command '
+             'people run every day — which is why Lab 07A makes you prove a backup first.'),
+    'widths': [4.0, 3.3, 3.0]}),
+
+  ('code', 'Limits and logs belong in the file',
+   'services:\n'
+   '  api:\n'
+   '    deploy:\n'
+   '      resources:\n'
+   '        limits:   { cpus: "0.50", memory: 256M }\n'
+   '        reservations: { memory: 128M }\n'
+   '    logging:\n'
+   '      driver: json-file\n'
+   '      options: { max-size: "10m", max-file: "3" }',
+   [('Unlimited containers are a laptop killer', 'One runaway service should not take the machine with it'),
+    ('Compose v2 honours deploy.resources', 'No Swarm required — it maps to the same cgroup limits'),
+    ('Unbounded logs fill the disk quietly', 'max-size and max-file are the two-line fix'),
+    ('It is the same conversation as Kubernetes', 'requests and limits tomorrow are this idea, with a scheduler')],
+   {'kicker': 'GOING FURTHER · OPTIONAL', 'lang': 'compose.yaml', 'split': 0.58}),
+
+  ('lab', '07A',
+   'Compose in Depth — overrides, profiles, health gating',
+   'Split the Lab 07 stack into a base file and environment overrides, gate startup on health, put '
+   'limits on it, and back the database up before you destroy it.',
+   ['Read the merged file with docker compose config — and find a value you did not expect',
+    'Split into compose.yaml + compose.override.yaml, then a UAT file',
+    'Put developer tooling behind a profile',
+    'Replace depends_on with a health-gated dependency and prove the crash is gone',
+    'Add CPU, memory and log limits, then watch them bite',
+    'Back up the volume, run down -v, and restore it'],
+   'A stack that starts in the right order, cannot eat the laptop, and whose data you can restore',
+   {'kicker': 'GOING FURTHER  ·  HANDS-ON',
+    'speaker': 'Lab guide: labs/lab-07-docker-compose-stack/README-07A-compose-in-depth.md. Optional; '
+               'about 60 minutes; needs Docker and the Lab 07 stack. The backup-and-restore part is the '
+               'one to demo if you only have five minutes.'}),
+
+  # ── C ──────────────────────────────────────────────────────────────────────
+  ('section', 'C', 'Hardening and Troubleshooting the Runtime',
+   'The flags that decide what a compromised container can do — and how to see inside one',
+   ['Capabilities, no-new-privileges and a read-only root filesystem',
+    'Memory and CPU limits, and the OOM kill',
+    'Where published ports really go, and why UFW does not see them',
+    'stats, events, inspect — and getting a shell into a distroless image']),
+
+  ('table', 'The runtime flags that matter',
+   ['Flag', 'What it stops', 'Cost of using it'],
+   [['--cap-drop ALL --cap-add NET_BIND_SERVICE', 'Almost every privileged syscall path', 'None, once you know which caps you need'],
+    ['--security-opt no-new-privileges:true', 'A setuid binary escalating inside the container', 'None'],
+    ['--read-only --tmpfs /tmp', 'Malware writing to the image filesystem', 'You must know where the app writes'],
+    ['--user 10001:10001', 'Root inside the container being root on a mounted volume', 'File ownership must match'],
+    ['--memory 256m --cpus 0.5', 'One container starving the host', 'The app must survive an OOM kill'],
+    ['--pids-limit 200', 'A fork bomb taking the machine down', 'None for normal workloads'],
+    ['(not) -v /var/run/docker.sock:…', '🔴 Root on the host, handed over', 'Never mount it into a build or an agent']],
+   'MODULE 3 §3.4 · MODULE 7 §7.4',
+   {'note': ('DEFENCE IN DEPTH, NOT A BOUNDARY',
+             'These are kernel-enforced limits on a SHARED kernel. They make an escape much harder; they '
+             'do not make a container a virtual machine. Multi-tenant isolation still needs a VM.'),
+    'widths': [4.2, 3.2, 2.9]}),
+
+  ('code', 'Prove the limits, do not trust them',
+   '# capabilities actually granted to the process\n'
+   'docker run --rm --cap-drop ALL alpine sh -c \\\n'
+   '  "grep CapEff /proc/self/status"\n'
+   'CapEff:\t0000000000000000        <-- none\n'
+   '\n'
+   '# memory limit and the kill that follows\n'
+   'docker run -d --name hog --memory 64m python:3.12-slim \\\n'
+   '  python -c "b=bytearray(); [b.extend(bytes(10**7)) for _ in range(50)]"\n'
+   'docker inspect hog --format "{{.State.OOMKilled}} {{.State.ExitCode}}"\n'
+   'true 137',
+   [('CapEff 0 is the proof', 'The kernel, not the documentation, telling you what the process may do'),
+    ('Exit 137 is SIGKILL (128+9)', 'The OOM killer, not your application, ended it'),
+    ('OOMKilled: true is the one to alert on', 'A restarting container with 137 is a limits conversation'),
+    ('Same numbers in Kubernetes tomorrow', 'CrashLoopBackOff with exit 137 means exactly this')],
+   {'kicker': 'GOING FURTHER · OPTIONAL', 'lang': 'bash  ·  real output', 'split': 0.60}),
+
+  ('code', 'Where a published port really goes',
+   'docker run -d -p 8080:8080 paytrack-api:1.0.0\n'
+   '\n'
+   'sudo iptables -t nat -L DOCKER -n | head\n'
+   'DNAT  tcp  --  0.0.0.0/0  0.0.0.0/0  tcp dpt:8080 to:172.17.0.2:8080\n'
+   '\n'
+   '# the chain YOUR rules must go in:\n'
+   'sudo iptables -I DOCKER-USER -i eth0 -p tcp --dport 8080 -j DROP',
+   [('Docker writes NAT rules for every -p', 'Traffic is redirected before a host firewall policy sees it'),
+    ('UFW does not filter published ports', 'A "firewalled" laptop can be publishing a database to the LAN'),
+    ('DOCKER-USER is evaluated first', 'It is the supported place for your own rules — Docker will not rewrite it'),
+    ('Or do not publish at all', 'Bind to 127.0.0.1:8080:8080, or keep the service on an internal network')],
+   {'kicker': 'GOING FURTHER · OPTIONAL', 'lang': 'bash  ·  real output', 'split': 0.60}),
+
+  ('code', 'Seeing inside a container that has no shell',
+   'docker stats --no-stream\n'
+   'docker events --since 10m --filter container=paytrack-api\n'
+   'docker inspect paytrack-api \\\n'
+   '  --format "{{.State.Status}} {{.RestartCount}} {{.HostConfig.Memory}}"\n'
+   '\n'
+   '# a distroless image has no sh - borrow one:\n'
+   'docker run -it --rm --pid container:paytrack-api \\\n'
+   '  --network container:paytrack-api --cap-add SYS_PTRACE \\\n'
+   '  nicolaka/netshoot bash',
+   [('stats reads the cgroup counters', 'Live memory and CPU per container, no agent required'),
+    ('events is the container audit log', 'Create, start, die, oom, health_status — with timestamps'),
+    ('inspect --format asks one question', 'Scriptable; the whole JSON is rarely what you want'),
+    ('Join namespaces instead of adding tools', 'A debug container with the app\'s network and PID view keeps the image small')],
+   {'kicker': 'GOING FURTHER · OPTIONAL', 'lang': 'bash', 'split': 0.62}),
+
+  ('table', 'Reclaiming disk — what each prune deletes',
+   ['Command', 'Deletes', 'Safe on a working machine?'],
+   [['docker container prune', 'Stopped containers', 'Yes'],
+    ['docker image prune', 'Dangling (untagged) images', 'Yes'],
+    ['docker image prune -a', 'Every image no container uses', 'Costs a re-pull, nothing more'],
+    ['docker builder prune', 'The build cache', 'Yes — next build is slower'],
+    ['docker volume prune', '🔴 Volumes no container references', 'NO — a stopped stack\'s database qualifies'],
+    ['docker system prune', 'Containers, networks, dangling images, build cache', 'Yes'],
+    ['docker system prune -a --volumes', '🔴 All of the above plus every unused volume', 'Only on a machine you can rebuild']],
+   'MODULE 3 §3.6',
+   {'note': ('THE HABIT',
+             'Run `docker system df` first — it tells you which of the four buckets is actually large. '
+             'Most "I am out of disk" cases are the build cache, which is the safest thing to delete.'),
+    'widths': [4.0, 3.4, 2.9]}),
+
+  ('myth', 'Four things teams say about containers',
+   [('"It is isolated, so it is secure."',
+     'It shares your kernel. One kernel bug, and --privileged or a mounted docker.sock, is the whole host.'),
+    ('"The image is small, so the attack surface is small."',
+     'Size and vulnerability count are different measurements. A 90 MB image can carry a critical CVE; scan it.'),
+    ('"We can always rebuild it from the Dockerfile."',
+     'Not if it says FROM python:3.12-slim and apt-get install with no pins. Rebuild it next year and see.'),
+    ('"Our firewall protects the database container."',
+     'Publishing a port writes a NAT rule that UFW never evaluates. Test it from another machine.')],
+   'MODULE 3 · MODULE 7'),
+
+  ('lab', '08A',
+   'Hardening and Troubleshooting the Runtime',
+   'Run the same image locked down, prove each control with the kernel\'s own output, then debug a '
+   'container that has no shell.',
+   ['Drop every capability and read CapEff to prove it',
+    'Run read-only with a tmpfs, and find what the app really writes',
+    'Set a memory limit, trigger the OOM kill, and read exit 137',
+    'Find the NAT rule a published port creates, and block it in DOCKER-USER',
+    'Debug with stats, events and inspect --format',
+    'Back up and restore a volume, then prune safely with docker system df'],
+   'A container you can defend in a review, and the commands to investigate one at 3 a.m.',
+   {'kicker': 'GOING FURTHER  ·  HANDS-ON',
+    'speaker': 'Lab guide: labs/lab-08-docker-networking-volumes/README-08A-hardening-and-troubleshooting.md. '
+               'Optional; about 60 minutes; needs Docker. The iptables part needs sudo and is Linux-only — '
+               'it is marked so delegates on Docker Desktop can read it instead.'}),
+]
+
+
+# Per-lab ADVANCED decks: slices of DAY3_EXTRA, each shipped in the lab folder it belongs to.
+_D3_A = DAY3_EXTRA[1:10]      # section A + Lab 06A
+_D3_B = DAY3_EXTRA[10:17]     # section B + Lab 07A
+_D3_C = DAY3_EXTRA[17:]       # section C + Lab 08A
+
+LAB06A_ADVANCED = [
+  ('title', 3, 'Lab 06A — Builds in Depth',
+   'The advanced build slides, for after class — the cache, BuildKit, multi-architecture',
+   ['What the build cache keys on, and what invalidates it',
+    'docker history, cache mounts, --target, --platform',
+    'Digest pinning, OCI labels and HEALTHCHECK',
+    'Optional. Nothing on Day 4 onwards depends on it'],
+   'Practise it: labs/lab-06-docker-images/README-06A-builds-in-depth.md'),
+] + _D3_A
+
+LAB07A_ADVANCED = [
+  ('title', 3, 'Lab 07A — Compose in Depth',
+   'The advanced Compose slides, for after class — merging, profiles, health gating, limits',
+   ['docker compose config, override files and profiles',
+    'Health-gated startup and restart policies',
+    'CPU, memory and log limits — and down -v',
+    'Optional. Nothing on Day 4 onwards depends on it'],
+   'Practise it: labs/lab-07-docker-compose-stack/README-07A-compose-in-depth.md'),
+] + _D3_B
+
+LAB08A_ADVANCED = [
+  ('title', 3, 'Lab 08A — Hardening and Troubleshooting',
+   'The advanced runtime slides, for after class — capabilities, limits, the network path',
+   ['Capabilities, no-new-privileges, read-only root, non-root user',
+    'Memory limits and the OOM kill · exit 137',
+    'Published ports, NAT and DOCKER-USER · stats, events, inspect',
+    'Optional. Nothing on Day 4 onwards depends on it'],
+   'Practise it: labs/lab-08-docker-networking-volumes/README-08A-hardening-and-troubleshooting.md'),
+] + _D3_C

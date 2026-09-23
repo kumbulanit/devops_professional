@@ -14,7 +14,7 @@
 > everyday commands in order. Sections marked **Going further** are optional.
 >
 > **Want to try the Going further commands yourself?**
-> [Lab 03A — Git, Going Further](../../labs/lab-03a-git-going-further/README.md) builds a practice
+> [Lab 03A — Git, Going Further](../../labs/lab-03-branching-and-collaboration/README-03A-git-going-further.md) builds a practice
 > repository where you run every one of them — reset, reflog, bisect, cherry-pick, interactive rebase
 > and safe force-pushing — with nothing to lose.
 

@@ -266,6 +266,18 @@ Answers: [`solutions/lab-08-answers.md`](../../solutions/lab-08-answers.md)
 
 ---
 
+## ⭐ Advanced — optional, in this folder
+
+You have proved how networking and volumes behave. The advanced page hardens the **runtime** and
+teaches the investigation commands — it is beside this one, and nothing later depends on it.
+
+| In this folder | What it is | Time | Needs |
+|---|---|---|---|
+| **[README-08A — Hardening and Troubleshooting](README-08A-hardening-and-troubleshooting.md)** | Drop every capability and read the kernel's own proof; run read-only with a tmpfs; trigger an OOM kill and read exit 137; cap processes and CPU; investigate with `stats`, `events` and `inspect --format`; debug a container that has no shell; find the NAT rule a published port writes; back up and restore a volume; reclaim disk without deleting a database | 60 min, eight parts | Docker. Two parts need Linux and `sudo` and are marked |
+| **`Lab08A_Advanced_Hardening.pptx`** | The 9 slides behind it: capabilities, limits, the network path, and the commands to see inside a container | Read it first | PowerPoint |
+
+---
+
 ## 🧩 Stretch (homework)
 
 1. **`--network host`.** Run a container with it and compare `ip addr` inside against the

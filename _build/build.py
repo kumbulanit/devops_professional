@@ -1,10 +1,12 @@
 # -*- coding: utf-8 -*-
 """Build the six DevOps Professional theory decks.
 
-    python build.py            # build all six
+    python build.py            # build all six (and the two per-lab advanced decks)
     python build.py 1 3        # build only days 1 and 3
+    python build.py labs       # build only the per-lab advanced decks
 
-Re-runnable: always overwrites the decks in ../slides/.
+Re-runnable: always overwrites the decks in ../slides/. The two ADVANCED decks are
+written into the lab folders they belong to, beside their README pages.
 """
 import os, sys, importlib
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
@@ -14,6 +16,20 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 OUT = os.path.abspath(os.path.join(HERE, '..', 'slides'))
 TEMPLATE = os.path.expanduser(
     '~/Documents/devops trainning/NP Template Logo 2.0 (2).pptx')
+
+LABS = os.path.abspath(os.path.join(HERE, '..', 'labs'))
+
+# Optional advanced decks, written beside the lab pages they support: day -> entries.
+LAB_DECKS = {
+    2: [('LAB03_ADVANCED', 'lab-03-branching-and-collaboration', 'Lab03A_Advanced_Git'),
+        ('LAB04_ADVANCED', 'lab-04-github-actions-ci', 'Lab04AB_Advanced_Pipelines')],
+    3: [('LAB06A_ADVANCED', 'lab-06-docker-images', 'Lab06A_Advanced_Builds'),
+        ('LAB07A_ADVANCED', 'lab-07-docker-compose-stack', 'Lab07A_Advanced_Compose'),
+        ('LAB08A_ADVANCED', 'lab-08-docker-networking-volumes', 'Lab08A_Advanced_Hardening')],
+    4: [('LAB10A_ADVANCED', 'lab-10-k8s-deploy-app', 'Lab10A_Advanced_Debugging'),
+        ('LAB11A_ADVANCED', 'lab-11-k8s-config-secrets-storage', 'Lab11A_Advanced_Access_and_Storage'),
+        ('LAB12A_ADVANCED', 'lab-12-k8s-ingress-scaling', 'Lab12A_Advanced_Scaling')],
+}
 
 TITLES = {
     1: 'Day1_DevOps_Foundations',
@@ -73,12 +89,13 @@ def _default_notes(prs, spec):
             tf.text = CODE_REF
 
 
-def _build_one(day, spec, filename):
+def _build_one(day, spec, filename, outdir=None):
     prs = dk.new_deck(TEMPLATE)
     dk.build(prs, spec)
     _default_notes(prs, spec)
-    os.makedirs(OUT, exist_ok=True)
-    path = os.path.join(OUT, f'{filename}.pptx')
+    outdir = outdir or OUT
+    os.makedirs(outdir, exist_ok=True)
+    path = os.path.join(outdir, f'{filename}.pptx')
     n = len(prs.slides._sldIdLst)      # includes auto-added exercise reveal slides
     if dk.OVERFULL:
         print(f'  Day {day}: {len(dk.OVERFULL)} over-full block(s) in {filename}:')
@@ -98,11 +115,32 @@ def build_day(day):
     if extra:
         xpath, xn = _build_one(day, extra, f'{TITLES[day]}_Going_Further')
         print(f'  Day {day}: {xn:3d} slides  →  {os.path.basename(xpath)}  (optional reading)')
+    build_lab_decks(day)
     return path, n
 
 
+def build_lab_decks(day=None):
+    """Build the per-lab ADVANCED decks into their lab folders. No day: every day that has some."""
+    for d in ([day] if day is not None else sorted(LAB_DECKS)):
+        for attr, folder, filename in LAB_DECKS.get(d, []):
+            try:
+                mod = importlib.import_module(f'content_day{d}')
+            except ModuleNotFoundError:
+                continue
+            spec = getattr(mod, attr, None)
+            if not spec:
+                continue
+            out = os.path.join(LABS, folder)
+            path, n = _build_one(d, spec, filename, outdir=out)
+            print(f'  Lab deck: {n:3d} slides  →  labs/{folder}/{os.path.basename(path)}')
+
+
 if __name__ == '__main__':
-    days = [int(a) for a in sys.argv[1:]] or [1, 2, 3, 4, 5, 6]
+    args = sys.argv[1:]
+    if args and args[0] == 'labs':
+        build_lab_decks()
+        raise SystemExit(0)
+    days = [int(a) for a in args] or [1, 2, 3, 4, 5, 6]
     total = 0
     for d in days:
         try:

@@ -577,3 +577,374 @@ $ kubectl get endpointslices            # 5 is the Service selecting pods?''',
   'the machines, and a GitOps pipeline takes a commit all the way to the cluster with no human '
   'running kubectl. Then blue-green, canary and rollback — and the database changes that make or break them.'),
 ]
+
+
+# ═════════════════════════════════════════════════════════════════════════════
+# DAY 4 — GOING FURTHER (optional reading, not taught in the session)
+#
+# Three sections, each with a hands-on lab that lives inside the lab folder it
+# extends:  A → Lab 10A,  B → Lab 11A,  C → Lab 12A.
+# ═════════════════════════════════════════════════════════════════════════════
+
+DAY4_EXTRA = [
+  ('title', 4,
+   'Day 4 — Going Further',
+   'Optional reading, for after class — once Deployments, Services and probes feel comfortable',
+   ['A: debugging and rollouts — why is this pod not running, and how do I go back?',
+    'B: access, configuration and storage in depth — RBAC, NetworkPolicy, Secrets, volumes',
+    'C: scaling, scheduling and disruption — HPA behaviour, where pods land, draining a node'],
+   'Not taught in the session — read it, then practise it in Labs 10A, 11A and 12A'),
+
+  # ── A ──────────────────────────────────────────────────────────────────────
+  ('section', 'A', 'Debugging and Rollouts',
+   'The four commands that answer nine out of ten Kubernetes questions',
+   ['get · describe · logs · events — in that order',
+    'What each pod state actually means',
+    'Ephemeral containers: a shell for an image that has none',
+    'rollout history, undo, pause — and what a rolling update really does']),
+
+  ('code', 'The four commands, in order',
+   'kubectl get pods -o wide                 # where is it, how many restarts\n'
+   'kubectl describe pod <name>              # WHY - read the Events at the bottom\n'
+   'kubectl logs <name> --previous           # what the CRASHED container said\n'
+   'kubectl get events --sort-by=.lastTimestamp | tail -20',
+   [('get tells you WHAT', 'Status, restarts, age, node — the shape of the problem'),
+    ('describe tells you WHY', 'Scheduling decisions, image pulls, probe failures, mount errors'),
+    ('--previous is the one people miss', 'The current container is fine; the one that died holds the evidence'),
+    ('events are namespaced and expire', 'Roughly an hour by default — capture them before they are gone')],
+   {'kicker': 'GOING FURTHER · OPTIONAL', 'lang': 'bash', 'split': 0.58}),
+
+  ('table', 'Pod states, and what each one means',
+   ['You see', 'It means', 'Look at'],
+   [['Pending', 'No node can take it yet', 'describe → Events: insufficient cpu/memory, or an unbound PVC'],
+    ['ContainerCreating', 'Pulling the image, or mounting volumes', 'describe → Events; a stuck mount is usually a missing Secret'],
+    ['ImagePullBackOff', 'The registry said no', 'The image name, the tag, and whether the pull secret exists'],
+    ['CrashLoopBackOff', 'It starts, then exits, repeatedly', 'logs --previous. The restart delay grows to 5 minutes'],
+    ['OOMKilled (exit 137)', 'It exceeded its memory limit', 'The limit, and whether the app leaks'],
+    ['Error (exit 1)', 'The process itself failed', 'logs — this is an application problem, not a cluster one'],
+    ['Evicted', 'The node ran out of something', 'describe node → conditions: DiskPressure, MemoryPressure'],
+    ['Running but not Ready', 'The readiness probe fails', 'It is out of the Service. describe → probe output']],
+   'MODULE 4 §4.8',
+   {'note': ('READY 0/1 IS NOT A CRASH',
+             'A pod can be Running and still receive no traffic, because readiness removed it from the '
+             'EndpointSlice. That is the state people misread most often.'),
+    'widths': [2.9, 3.4, 4.0]}),
+
+  ('code', 'A shell for an image that has none',
+   '# the production image is distroless - no sh, no curl, nothing\n'
+   'kubectl debug -it paytrack-api-abc123 \\\n'
+   '  --image=nicolaka/netshoot --target=api -- bash\n'
+   '\n'
+   '# a copy of the pod, with a shell, that does NOT take traffic\n'
+   'kubectl debug paytrack-api-abc123 --copy-to=debug-pod \\\n'
+   '  --image=nicolaka/netshoot --share-processes -- sleep infinity\n'
+   '\n'
+   'kubectl delete pod debug-pod',
+   [('An ephemeral container joins the running pod', 'Same network and, with --target, the same process namespace'),
+    ('Nothing is added to your image', 'The debug tooling lives and dies with the session'),
+    ('--copy-to leaves production alone', 'The copy is not in the Service, so you can poke it safely'),
+    ('Delete the copy when you are done', 'It is a pod like any other and will sit there for ever')],
+   {'kicker': 'GOING FURTHER · OPTIONAL', 'lang': 'bash', 'split': 0.60}),
+
+  ('code', 'Going back is one command — if you kept the history',
+   'kubectl rollout history deployment/paytrack-api\n'
+   'kubectl rollout history deployment/paytrack-api --revision=3\n'
+   '\n'
+   'kubectl rollout undo deployment/paytrack-api              # to the previous revision\n'
+   'kubectl rollout undo deployment/paytrack-api --to-revision=2\n'
+   '\n'
+   'kubectl rollout pause deployment/paytrack-api   # stop mid-rollout\n'
+   'kubectl rollout resume deployment/paytrack-api',
+   [('A revision is a ReplicaSet', 'Kubernetes keeps old ones so "undo" is a scale-up, not a rebuild'),
+    ('revisionHistoryLimit decides how far back', 'Default 10. Set it to 0 and undo has nothing to go to'),
+    ('pause is the manual canary', 'Change the image, let some pods roll, watch, then resume or undo'),
+    ('undo is faster than a pipeline', 'Minutes of CI versus seconds of scheduler — know both')],
+   {'kicker': 'GOING FURTHER · OPTIONAL', 'lang': 'bash', 'split': 0.60}),
+
+  ('table', 'The three probes, and the failure each one causes',
+   ['Probe', 'When it fails', 'The failure mode you will meet'],
+   [['liveness', 'The container is RESTARTED', 'Probe hits a slow dependency → every replica restarts at once → outage'],
+    ['readiness', 'The pod leaves the Service', 'A database blip takes all pods out of the EndpointSlice → 503 with pods "Running"'],
+    ['startup', 'The container is restarted', 'Missing on a slow starter → liveness kills it before it ever finishes booting'],
+    ['(none)', 'Nothing', 'Traffic is sent to a process that is still loading — the default until you add them']],
+   'MODULE 4 §4.4',
+   {'note': ('THE RULE',
+             'Liveness must test the PROCESS, never its dependencies. Readiness may test dependencies. '
+             'If your liveness probe queries the database, one slow query restarts the whole deployment.'),
+    'widths': [2.2, 3.4, 4.7]}),
+
+  ('predict', 'The database gets slow. What does Kubernetes do?',
+   'Your liveness probe calls /health, which runs SELECT 1 against PostgreSQL. The database has a '
+   'thirty-second stall.',
+   ['Write down what happens to one pod.',
+    'Then write down what happens to all six replicas at the same moment.',
+    'Does the deployment recover on its own when the database does?'],
+   'Every liveness probe times out together, so every container is killed together — a full outage '
+   'caused by a slow query, not a failed one. They restart, hit the same stall, and enter '
+   'CrashLoopBackOff with a growing back-off. Readiness would have removed them from the Service '
+   'and let them return quietly. You build both probes and break them in Lab 10A.',
+   3),
+
+  ('lab', '10A',
+   'Debugging and Rollouts — the 3 a.m. commands',
+   'Break the deployment six ways on purpose, diagnose each from the cluster\'s own output, and '
+   'roll back a bad release in one command.',
+   ['Produce Pending, ImagePullBackOff, CrashLoopBackOff, OOMKilled and Running-but-not-Ready',
+    'Read each one with get, describe, logs --previous and events',
+    'Get a shell into the distroless image with kubectl debug',
+    'Turn a liveness probe into a restart storm, then fix it with readiness',
+    'Roll out a bad image, watch maxSurge and maxUnavailable, and undo it',
+    'Pause a rollout half-way and decide from real output whether to resume'],
+   'The six failures you will actually meet, and the command that explains each one',
+   {'kicker': 'GOING FURTHER  ·  HANDS-ON',
+    'speaker': 'Lab guide: labs/lab-10-k8s-deploy-app/README-10A-debugging-and-rollouts.md. Optional; '
+               'about 70 minutes; needs the Lab 09 cluster and the Lab 10 deployment. The restart-storm '
+               'demo is the one to show from the front.'}),
+
+  # ── B ──────────────────────────────────────────────────────────────────────
+  ('section', 'B', 'Access, Configuration and Storage in Depth',
+   'Who can do what, what a Secret really protects, and where the data actually lives',
+   ['ServiceAccounts, Roles and RoleBindings — and auth can-i',
+    'What a Secret is, and what it is not',
+    'NetworkPolicy: default deny, then allow what you meant',
+    'Storage classes, access modes, reclaim policies and resize']),
+
+  ('code', 'RBAC in four objects, and one command to test it',
+   'kubectl create serviceaccount deploy-bot\n'
+   'kubectl create role pod-reader \\\n'
+   '  --verb=get,list,watch --resource=pods,pods/log\n'
+   'kubectl create rolebinding deploy-bot-can-read \\\n'
+   '  --role=pod-reader --serviceaccount=paytrack-dev:deploy-bot\n'
+   '\n'
+   'kubectl auth can-i list pods \\\n'
+   '  --as=system:serviceaccount:paytrack-dev:deploy-bot    # yes\n'
+   'kubectl auth can-i delete deployments \\\n'
+   '  --as=system:serviceaccount:paytrack-dev:deploy-bot    # no',
+   [('Role is namespaced, ClusterRole is not', 'Start namespaced; reach for cluster scope only when you must'),
+    ('A binding is the grant', 'Roles grant nothing on their own — the binding ties subject to role'),
+    ('auth can-i --as is the audit tool', 'Ask the API server what an identity may do, before an auditor does'),
+    ('Every pod has a ServiceAccount', 'The default one is mounted into your pod unless you say otherwise')],
+   {'kicker': 'GOING FURTHER · OPTIONAL', 'lang': 'bash', 'split': 0.62}),
+
+  ('table', 'What a Secret is — and is not',
+   ['Belief', 'Reality', 'What to do about it'],
+   [['"It is encrypted"', 'base64 only, unless the cluster enables encryption at rest', 'Turn on EncryptionConfiguration, or use an external store'],
+    ['"Only my app can read it"', 'Anyone with get secret in the namespace can read it', 'RBAC is the actual control'],
+    ['"It is safe in git"', 'A Secret manifest is plaintext in your repository', 'Sealed Secrets (Lab 17) or External Secrets'],
+    ['"Rotating it is easy"', 'An env-var Secret needs a pod restart to be re-read', 'Mount as a file, or trigger a rollout deliberately'],
+    ['"It never leaves the cluster"', 'It reaches etcd, backups, and any log that echoes it', 'Treat etcd backups as secret material']],
+   'MODULE 4 §4.6 · MODULE 7',
+   {'note': ('THE HONEST SUMMARY',
+             'A Kubernetes Secret keeps a credential out of the image and out of the manifest that '
+             'defines the workload. Everything beyond that is RBAC, encryption at rest, and what you '
+             'do with backups.'),
+    'widths': [2.7, 3.7, 3.9]}),
+
+  ('code', 'Default deny, then allow what you meant',
+   'apiVersion: networking.k8s.io/v1\n'
+   'kind: NetworkPolicy\n'
+   'metadata: { name: default-deny-ingress }\n'
+   'spec:\n'
+   '  podSelector: {}            # every pod in this namespace\n'
+   '  policyTypes: [Ingress]     # with no ingress rules = deny all inbound\n'
+   '---\n'
+   'spec:                        # ... then one that allows the API to reach Postgres\n'
+   '  podSelector: { matchLabels: { app: postgres } }\n'
+   '  ingress:\n'
+   '    - from: [{ podSelector: { matchLabels: { app.kubernetes.io/name: paytrack-api } } }]\n'
+   '      ports: [{ port: 5432 }]',
+   [('Policies are additive and allow-only', 'There is no "deny" rule — you deny by not allowing'),
+    ('An empty podSelector means every pod', 'That is how a default-deny is written'),
+    ('It needs a CNI that enforces it', 'k3s (Flannel) does; some managed clusters need it enabled'),
+    ('Test it from a pod, not from your laptop', 'Policy applies to pod-to-pod traffic inside the cluster')],
+   {'kicker': 'GOING FURTHER · OPTIONAL', 'lang': 'networkpolicy.yaml', 'split': 0.62}),
+
+  ('code', 'Config changes that actually reach the process',
+   '# 1. env vars from a ConfigMap are read ONCE, at start:\n'
+   'kubectl rollout restart deployment/paytrack-api\n'
+   '\n'
+   '# 2. the automatic version - a checksum annotation in the pod template:\n'
+   'spec:\n'
+   '  template:\n'
+   '    metadata:\n'
+   '      annotations:\n'
+   '        checksum/config: "{{ sha256sum of the ConfigMap }}"\n'
+   '\n'
+   '# 3. or make it impossible to edit in place:\n'
+   'kubectl create configmap paytrack-config --from-file=... --dry-run=client -o yaml\n'
+   '# ... with  immutable: true',
+   [('A mounted ConfigMap updates in the file', 'Eventually — kubelet syncs it, and only if you did not use subPath'),
+    ('subPath mounts never update', 'The most common "my config change did nothing" cause'),
+    ('env: values never update', 'The process read them at exec time; only a restart re-reads them'),
+    ('A checksum annotation forces a rollout', 'Change the config, the pod template changes, Kubernetes rolls')],
+   {'kicker': 'GOING FURTHER · OPTIONAL', 'lang': 'bash  ·  yaml', 'split': 0.60}),
+
+  ('table', 'Storage: the four decisions',
+   ['Decision', 'Field', 'Getting it wrong looks like'],
+   [['Which storage', 'storageClassName', 'PVC stuck Pending — no default class, or a name that does not exist'],
+    ['How many writers', 'accessModes', 'ReadWriteOnce on a multi-replica Deployment → pods stuck ContainerCreating'],
+    ['What happens on delete', 'persistentVolumeReclaimPolicy', 'Delete: the data goes with the PVC. Retain: orphaned volumes and a bill'],
+    ['Per-replica or shared', 'volumeClaimTemplates vs a PVC', 'A StatefulSet needs its own volume per pod; a Deployment cannot have one']],
+   'MODULE 4 §4.7',
+   {'note': ('THE ONE THAT BITES',
+             'ReadWriteOnce means one NODE, not one pod. Two replicas on the same node can share it; '
+             'the moment the scheduler puts one elsewhere, that pod never starts.'),
+    'widths': [2.6, 2.9, 4.8]}),
+
+  ('lab', '11A',
+   'Access, Config and Storage in Depth',
+   'Grant an identity exactly what it needs and prove it, deny traffic by default and allow only '
+   'what you meant, then make a config change actually reach the process.',
+   ['Create a ServiceAccount, Role and RoleBinding, then test with auth can-i --as',
+    'Read a Secret as any namespace member can, and decide what that means',
+    'Apply a default-deny NetworkPolicy and watch the API lose the database',
+    'Allow exactly one path, and prove nothing else got in',
+    'Change a ConfigMap and see why nothing happened — then fix it two ways',
+    'Resize a PVC, and see what accessModes and reclaim policy really do'],
+   'Least privilege you can demonstrate, a namespace that denies by default, and config you can roll',
+   {'kicker': 'GOING FURTHER  ·  HANDS-ON',
+    'speaker': 'Lab guide: labs/lab-11-k8s-config-secrets-storage/README-11A-access-and-storage.md. '
+               'Optional; about 70 minutes; needs the Lab 11 objects. The NetworkPolicy part is the one '
+               'that surprises people — k3s does enforce it.'}),
+
+  # ── C ──────────────────────────────────────────────────────────────────────
+  ('section', 'C', 'Scaling, Scheduling and Disruption',
+   'Where pods land, when they multiply, and what happens when a node goes away',
+   ['HPA behaviour: stabilisation windows and policies',
+    'What actually decides which node a pod lands on',
+    'Taints, tolerations, affinity and topology spread',
+    'PodDisruptionBudgets and kubectl drain']),
+
+  ('code', 'An HPA that does not flap',
+   'apiVersion: autoscaling/v2\n'
+   'spec:\n'
+   '  minReplicas: 2\n'
+   '  maxReplicas: 10\n'
+   '  metrics:\n'
+   '    - type: Resource\n'
+   '      resource: { name: cpu, target: { type: Utilization, averageUtilization: 60 } }\n'
+   '  behavior:\n'
+   '    scaleUp:\n'
+   '      stabilizationWindowSeconds: 0     # react to load immediately\n'
+   '      policies: [{ type: Percent, value: 100, periodSeconds: 30 }]\n'
+   '    scaleDown:\n'
+   '      stabilizationWindowSeconds: 300   # wait 5 min of calm before shrinking\n'
+   '      policies: [{ type: Pods, value: 1, periodSeconds: 60 }]',
+   [('Utilization is a percentage of REQUESTS', 'No requests set = no CPU target = the HPA cannot work'),
+    ('Scale up fast, scale down slowly', 'The asymmetry is deliberate: a wrong scale-down costs an outage'),
+    ('The default scaleDown window is 5 minutes', 'Change it only when you can explain the flapping you accept'),
+    ('The HPA takes the HIGHEST recommendation', 'Add a memory metric and it will usually win — see the Day 4 deck')],
+   {'kicker': 'GOING FURTHER · OPTIONAL', 'lang': 'hpa.yaml', 'split': 0.64}),
+
+  ('table', 'What decides which node a pod lands on',
+   ['Mechanism', 'Says', 'Typical use'],
+   [['resources.requests', '"I need this much room"', 'The primary input — the scheduler packs by requests, not usage'],
+    ['nodeSelector', '"Only nodes with this label"', 'Simple hardware or zone pinning'],
+    ['nodeAffinity', '"Prefer / require these labels"', 'Soft preferences the scheduler may ignore under pressure'],
+    ['podAntiAffinity', '"Not next to my own kind"', 'Spreading replicas across nodes for availability'],
+    ['topologySpreadConstraints', '"Even across zones, within a skew"', 'The modern replacement for most anti-affinity rules'],
+    ['taints + tolerations', '"Keep off unless you tolerate this"', 'Reserving nodes — GPUs, licensed software, control plane'],
+    ['priorityClass', '"Evict someone else if you must"', 'Making sure the critical workload is the one that survives']],
+   'MODULE 4 §4.9',
+   {'note': ('REQUESTS ARE THE CONTRACT',
+             'Every other mechanism is a filter on top. A pod with no requests can be scheduled '
+             'anywhere, is the first to be evicted, and is invisible to the autoscaler.'),
+    'widths': [3.3, 3.2, 3.8]}),
+
+  ('code', 'Reserve a node, and spread the replicas',
+   '# reserve: nothing lands here unless it tolerates the taint\n'
+   'kubectl taint nodes k3d-paytrack-agent-1 workload=payments:NoSchedule\n'
+   '\n'
+   'spec:                      # ... and in the pod template:\n'
+   '  tolerations:\n'
+   '    - { key: workload, operator: Equal, value: payments, effect: NoSchedule }\n'
+   '  topologySpreadConstraints:\n'
+   '    - maxSkew: 1\n'
+   '      topologyKey: kubernetes.io/hostname\n'
+   '      whenUnsatisfiable: ScheduleAnyway   # DoNotSchedule is the strict version\n'
+   '      labelSelector: { matchLabels: { app.kubernetes.io/name: paytrack-api } }',
+   [('A taint repels; a toleration permits', 'The toleration does not attract — pair it with affinity if you must pin'),
+    ('NoSchedule, PreferNoSchedule, NoExecute', 'Only NoExecute evicts pods that are already running'),
+    ('maxSkew 1 means "within one"', 'Across nodes, zones, or any label you choose as the topology key'),
+    ('ScheduleAnyway degrades, DoNotSchedule blocks', 'Choose which failure you prefer at 3 a.m.')],
+   {'kicker': 'GOING FURTHER · OPTIONAL', 'lang': 'bash  ·  yaml', 'split': 0.62}),
+
+  ('code', 'Draining a node — and the budget that protects you',
+   'apiVersion: policy/v1\n'
+   'kind: PodDisruptionBudget\n'
+   'spec:\n'
+   '  minAvailable: 1                 # or maxUnavailable: 1\n'
+   '  selector: { matchLabels: { app.kubernetes.io/name: paytrack-api } }\n'
+   '\n'
+   'kubectl drain k3d-paytrack-agent-0 --ignore-daemonsets --delete-emptydir-data\n'
+   '# evicting pod paytrack-dev/paytrack-api-...\n'
+   '# error when evicting pod ... (will retry): Cannot evict pod as it would violate the PDB',
+   [('A PDB constrains VOLUNTARY disruption', 'Drains and node upgrades — not a crash, and not a node that dies'),
+    ('The drain waits rather than breaking it', 'That message is the budget working, not an error to force past'),
+    ('minAvailable: 1 with replicas: 1 deadlocks', 'Nothing can ever be evicted — the classic self-inflicted stall'),
+    ('uncordon when you are done', 'A cordoned node stays unschedulable until you say otherwise')],
+   {'kicker': 'GOING FURTHER · OPTIONAL', 'lang': 'yaml  ·  bash', 'split': 0.62}),
+
+  ('myth', 'Four things teams say about scaling Kubernetes',
+   [('"The HPA will handle the traffic."',
+     'Only if requests are set, metrics-server is running, and your pods start faster than the load arrives.'),
+    ('"More replicas means more capacity."',
+     'Not if they all land on one node, or all wait on the same database connection pool.'),
+    ('"A PodDisruptionBudget keeps us available."',
+     'It constrains voluntary evictions only. A node that dies takes its pods with it, budget or not.'),
+    ('"We set limits, so we are safe."',
+     'Limits without requests give the worst QoS class: first to be throttled, first to be evicted.')],
+   'MODULE 4 §4.9'),
+
+  ('lab', '12A',
+   'Scaling, Scheduling and Disruption',
+   'Tune an HPA so it stops flapping, decide where pods land, and drain a node while the service '
+   'stays up — then create the deadlock a bad budget causes.',
+   ['Add behaviour to the HPA and watch scale-up and scale-down differ',
+    'Read why a pod is Pending straight from the scheduler\'s own events',
+    'Taint a node, tolerate it, and see the pods move',
+    'Spread replicas with topologySpreadConstraints and prove the skew',
+    'Drain a node with a PodDisruptionBudget in place and watch it protect you',
+    'Set minAvailable equal to replicas, deadlock the drain, and fix it'],
+   'A workload that scales sensibly, lands where you meant, and survives a node being taken away',
+   {'kicker': 'GOING FURTHER  ·  HANDS-ON',
+    'speaker': 'Lab guide: labs/lab-12-k8s-ingress-scaling/README-12A-scaling-and-scheduling.md. '
+               'Optional; about 70 minutes; needs the Lab 09 three-node cluster and the Lab 12 HPA. '
+               'The drain deadlock is the memorable one.'}),
+]
+
+
+# Per-lab ADVANCED decks: slices of DAY4_EXTRA, each shipped in the lab folder it belongs to.
+_D4_A = DAY4_EXTRA[1:9]       # section A + Lab 10A
+_D4_B = DAY4_EXTRA[9:16]      # section B + Lab 11A
+_D4_C = DAY4_EXTRA[16:]       # section C + Lab 12A
+
+LAB10A_ADVANCED = [
+  ('title', 4, 'Lab 10A — Debugging and Rollouts',
+   'The advanced debugging slides, for after class — the commands you reach for at 3 a.m.',
+   ['get · describe · logs --previous · events, in that order',
+    'What each pod state means, and which command explains it',
+    'Ephemeral containers · rollout history, undo and pause',
+    'Optional. Nothing on Day 5 onwards depends on it'],
+   'Practise it: labs/lab-10-k8s-deploy-app/README-10A-debugging-and-rollouts.md'),
+] + _D4_A
+
+LAB11A_ADVANCED = [
+  ('title', 4, 'Lab 11A — Access, Config and Storage in Depth',
+   'The advanced access and storage slides, for after class — RBAC, Secrets, NetworkPolicy, volumes',
+   ['ServiceAccounts, Roles, RoleBindings and auth can-i',
+    'What a Secret protects, and what it does not',
+    'Default-deny networking · config changes that actually apply · storage decisions',
+    'Optional. Nothing on Day 5 onwards depends on it'],
+   'Practise it: labs/lab-11-k8s-config-secrets-storage/README-11A-access-and-storage.md'),
+] + _D4_B
+
+LAB12A_ADVANCED = [
+  ('title', 4, 'Lab 12A — Scaling, Scheduling and Disruption',
+   'The advanced scaling slides, for after class — HPA behaviour, where pods land, draining a node',
+   ['HPA stabilisation windows and policies',
+    'Requests, taints, affinity and topology spread',
+    'PodDisruptionBudgets and kubectl drain',
+    'Optional. Nothing on Day 5 onwards depends on it'],
+   'Practise it: labs/lab-12-k8s-ingress-scaling/README-12A-scaling-and-scheduling.md'),
+] + _D4_C

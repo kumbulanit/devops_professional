@@ -1181,15 +1181,32 @@ Network graph — the lines are gone.
 
 ---
 
+## ⭐ Advanced — optional, in this folder
+
+This lab is finished. If you want to go further with Git, everything you need is **beside this
+page in the same folder** — nothing on Day 3 onwards depends on any of it.
+
+| In this folder | What it is | Time | Needs |
+|---|---|---|---|
+| **[README-03A — Git, Going Further](README-03A-git-going-further.md)** | A hands-on lab on a practice repository built to be broken: stash, `add -p`, amend, the three resets, reflog rescue, bisect, revert, clean, tags, cherry-pick, merge vs rebase, interactive rebase, and force-pushing against a "colleague" | 80 min, in eight parts you can do separately | Nothing — no GitHub, no Docker, no network |
+| **`Lab03A_Advanced_Git.pptx`** | The 32 advanced slides behind that lab: sections A, B and C of the Day 2 *Going Further* material | Read it first, or use it to teach the material | PowerPoint |
+| **`setup-gym.sh`** | Builds (and rebuilds) the practice repository the lab uses | 2 seconds | Run by the lab |
+
+**Do them in that order:** read the deck, then work through the page. Every command in the deck
+is run for real in the lab, including the ones that destroy work — which is the point of doing
+it on a practice repository rather than on `paytrack-api`.
+
+---
+
 ## 🧩 Stretch (homework)
 
 1. **Rebase instead of merge.** On a new branch, `git fetch && git rebase origin/main`.
    Compare the resulting history with the merge you did in Part 4. Then read Module 2 §2.5
    and explain why you would never do this to a branch a colleague has pulled.
-   **[Lab 03A](../lab-03a-git-going-further/README.md) Part 7** walks through merge versus rebase,
+   **[Lab 03A](README-03A-git-going-further.md) Part 7** walks through merge versus rebase,
    a rebase conflict and interactive rebase step by step, and Part 8 shows what force-pushing does to
    a colleague.
-2. **`git bisect`.** [Lab 03A](../lab-03a-git-going-further/README.md) Part 5 gives you a practice
+2. **`git bisect`.** [Lab 03A](README-03A-git-going-further.md) Part 5 gives you a practice
    repository with a hidden bug, and finds it with `git bisect run` in three steps.
 3. **Signed commits.** `git config --global commit.gpgsign true` with an SSH signing key, and
    turn on *Require signed commits* in branch protection.
@@ -1204,7 +1221,7 @@ shared **Network graph** in which every delegate can see their own branch alongs
 else's. This is the repository every remaining lab pushes to.
 
 **Next:** [Lab 04 — GitHub Actions CI](../lab-04-github-actions-ci/README.md) ·
-*Optional:* [Lab 03A — Git, Going Further](../lab-03a-git-going-further/README.md) (reset, reflog,
+*Optional:* [Lab 03A — Git, Going Further](README-03A-git-going-further.md) (reset, reflog,
 bisect, cherry-pick, interactive rebase, force-push — on a practice repository)
 
 ---

@@ -935,7 +935,10 @@ def build(prs, spec):
         kind, rest = item[0], item[1:]
         note = None
         if isinstance(rest[-1], dict):
-            kw = rest[-1]; rest = rest[:-1]
+            # COPY it: popping from the spec's own dict would empty 'speaker' for any later
+            # deck built from the same slides in this process (the per-lab ADVANCED decks
+            # are slices of DAY2_EXTRA, so they are built from the very same tuples).
+            kw = dict(rest[-1]); rest = rest[:-1]
             note = kw.pop('speaker', None)
         else:
             kw = {}

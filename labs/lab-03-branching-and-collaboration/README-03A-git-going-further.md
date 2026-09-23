@@ -5,6 +5,8 @@
 | **Day** | 2 — **optional**, after class or as homework |
 | **Duration** | About 80 minutes, in eight parts you can do on different evenings |
 | **Module** | 2 — Version Control and CI (the *Going Further* slides, sections B and C) |
+| **Slides** | `Lab03A_Advanced_Git.pptx` — in this folder, 32 slides, read it first |
+| **Parent lab** | [Lab 03 — Branching, Pull Requests and Team Collaboration](README.md) |
 | **You will produce** | Nothing the later labs need — you will have *used* every advanced command in the slides, on a practice copy |
 | **Feeds into** | Nothing. This is a skills lab: it makes Labs 03–19 less frightening |
 
@@ -80,7 +82,7 @@ cd ~/devops-course/course-material && git pull --ff-only
 it. If this prints an error, ignore it — the rest works with the copy you already have.
 
 ```bash
-bash ~/devops-course/course-material/labs/lab-03a-git-going-further/setup-gym.sh
+bash ~/devops-course/course-material/labs/lab-03-branching-and-collaboration/setup-gym.sh
 ```
 **What this does:** `bash <file>` means "run the list of commands in this file". This particular
 file deletes and rebuilds the gym — including the `git-gym-origin.git` and `git-gym-colleague`
@@ -109,7 +111,7 @@ folders that Part 8 creates. Nothing outside the gym is touched.
 **1. Build the practice repository.**
 
 ```bash
-bash ~/devops-course/course-material/labs/lab-03a-git-going-further/setup-gym.sh
+bash ~/devops-course/course-material/labs/lab-03-branching-and-collaboration/setup-gym.sh
 ```
 **What this does:** runs a script that copies the PayTrack API app into `~/devops-course/git-gym`
 and makes **ten commits as four different people** (you, Ana, Ben and Chen), spread over the last
@@ -1974,7 +1976,7 @@ rebase on the same branch, a rebase conflict, interactive rebase with autosquash
 rebase, and a lease that saved a colleague's commit.
 
 **Next:** [Lab 04 — GitHub Actions CI](../lab-04-github-actions-ci/README.md), or
-[Lab 04A — Run CI on your laptop with act](../lab-04a-act-and-pipeline-security/README.md) once
+[Lab 04A — Run CI on your laptop with act](../lab-04-github-actions-ci/README-04A-act-and-pipeline-security.md) once
 Lab 04 is done.
 
 ---

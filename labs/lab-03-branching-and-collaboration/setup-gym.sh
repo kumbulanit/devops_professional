@@ -46,7 +46,7 @@ cat > README.md <<'EOF'
 
 This repository exists to be broken. Rebuild it at any time with:
 
-    bash ~/devops-course/course-material/labs/lab-03a-git-going-further/setup-gym.sh
+    bash ~/devops-course/course-material/labs/lab-03-branching-and-collaboration/setup-gym.sh
 EOF
 cat > CHANGELOG.md <<'EOF'
 # Changelog

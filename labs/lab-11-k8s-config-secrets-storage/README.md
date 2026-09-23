@@ -565,6 +565,18 @@ kill %1 2>/dev/null
 
 ---
 
+## ⭐ Advanced — optional, in this folder
+
+You have configuration, a Secret, storage and an ingress policy. The advanced page adds the three
+things an auditor asks about next — and it is beside this one.
+
+| In this folder | What it is | Time | Needs |
+|---|---|---|---|
+| **[README-11A — Access, Config and Storage in Depth](README-11A-access-and-storage.md)** | Grant a ServiceAccount exactly what it needs and prove the limits with `auth can-i`; see what a Secret really protects; deny **egress** by default, watch it break DNS, then allow only what the app needs; find out why a ConfigMap change did nothing and fix it two ways; read what a StorageClass, an access mode and a reclaim policy actually promise | 70 min, nine parts | The Lab 11 objects |
+| **`Lab11A_Advanced_Access_and_Storage.pptx`** | The 8 slides behind it: RBAC in four objects, Secrets honestly, default-deny networking, config propagation, the four storage decisions | Read it first | PowerPoint |
+
+---
+
 ## 🧩 Stretch (homework)
 
 1. **Immutable ConfigMaps.** Add `immutable: true`. The API server then refuses updates —

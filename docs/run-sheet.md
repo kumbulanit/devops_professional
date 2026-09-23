@@ -77,13 +77,16 @@ Lab 03 is the one lab that needs the whole room at once, which is why it gets th
 guided practical.
 
 **Going Further, hands-on (optional, after class).** Each section of the Going Further deck has a lab
-that makes delegates *run* what the slides show:
+that makes delegates *run* what the slides show. Each lab, and the slides for it, sit **inside the
+lab folder they extend** — `Lab03A_Advanced_Git.pptx` (32 slides) with Lab 03, and
+`Lab04AB_Advanced_Pipelines.pptx` (18 slides) with Lab 04 — so a delegate who only wants the
+advanced Git material can be given one folder.
 
 | Going Further deck | Lab | Needs | About |
 |---|---|---|---|
-| B — reset, reflog, cherry-pick, tag, bisect, clean · C — merge vs rebase, conflicts, interactive rebase, force-push | [03A — Git, Going Further](../labs/lab-03a-git-going-further/README.md) | Nothing but git and Python — works offline | 80 min |
-| D — Actions concepts, securing the pipeline, build automation, versioning | [04A — act and pipeline security](../labs/lab-04a-act-and-pipeline-security/README.md) | Lab 04, Docker, ~6 GB disk | 90 min |
-| D — the same pipeline on another platform | [04B — GitLab CI](../labs/lab-04b-gitlab-ci/README.md) | Lab 04, a verified GitLab account | 60 min |
+| B — reset, reflog, cherry-pick, tag, bisect, clean · C — merge vs rebase, conflicts, interactive rebase, force-push | [03A — Git, Going Further](../labs/lab-03-branching-and-collaboration/README-03A-git-going-further.md) | Nothing but git and Python — works offline | 80 min |
+| D — Actions concepts, securing the pipeline, build automation, versioning | [04A — act and pipeline security](../labs/lab-04-github-actions-ci/README-04A-act-and-pipeline-security.md) | Lab 04, Docker, ~6 GB disk | 90 min |
+| D — the same pipeline on another platform | [04B — GitLab CI](../labs/lab-04-github-actions-ci/README-04B-gitlab-ci.md) | Lab 04, a verified GitLab account | 60 min |
 
 None of them is needed by a later lab. Accounts are the usual blocker, so the pre-course email must
 point at **Lab 00 Step 8** (GitHub account, `gh auth login --scopes workflow`, SSH key, and GitLab for
@@ -116,6 +119,19 @@ anyone planning Lab 04B).
 nginx, two API replicas, PostgreSQL — started with one `docker compose up` (Labs 07–08).
 **Day 4 needs the Lab 06 image.**
 
+**Going Further, hands-on (optional, after class).** The Day 3 advanced material —
+`Day3_Containers_with_Docker_Going_Further.pptx` (26 slides) — is also published split by topic,
+each deck inside the lab folder it teaches:
+
+| Going Further deck | Lab | Needs | About |
+|---|---|---|---|
+| A — the build cache, BuildKit, digests, multi-arch | [06A — Builds in Depth](../labs/lab-06-docker-images/README-06A-builds-in-depth.md) | Docker, ~3 GB disk | 60 min |
+| B — merging, profiles, limits, restores | [07A — Compose in Depth](../labs/lab-07-docker-compose-stack/README-07A-compose-in-depth.md) | Docker and the Lab 07 stack | 60 min |
+| C — capabilities, limits, the network path, debugging | [08A — Hardening & Troubleshooting](../labs/lab-08-docker-networking-volumes/README-08A-hardening-and-troubleshooting.md) | Docker; two parts need Linux + sudo | 60 min |
+
+None of them is needed by a later lab. 08A is the one to demo if you only have ten minutes: two
+lines of kernel output settle the "containers are isolated, so they are secure" argument.
+
 ---
 
 ## Day 4 — Kubernetes for DevOps
@@ -138,6 +154,20 @@ nginx, two API replicas, PostgreSQL — started with one `docker compose up` (La
 externalised config and secrets, and autoscaling under load.
 
 ---
+
+**Going Further, hands-on (optional, after class).** The Day 4 advanced material —
+`Day4_Kubernetes_Going_Further.pptx` (24 slides) — is published split by topic, each deck inside
+the lab folder it teaches:
+
+| Going Further deck | Lab | Needs | About |
+|---|---|---|---|
+| A — get/describe/logs/events, pod states, ephemeral containers, rollouts | [10A — Debugging & Rollouts](../labs/lab-10-k8s-deploy-app/README-10A-debugging-and-rollouts.md) | The Lab 09 cluster and Lab 10's deployment | 70 min |
+| B — RBAC, Secrets honestly, egress policy, config propagation, storage | [11A — Access, Config & Storage](../labs/lab-11-k8s-config-secrets-storage/README-11A-access-and-storage.md) | The Lab 11 objects | 70 min |
+| C — HPA behaviour, taints, topology spread, PDBs and drain | [12A — Scaling, Scheduling & Disruption](../labs/lab-12-k8s-ingress-scaling/README-12A-scaling-and-scheduling.md) | Three nodes, the Lab 12 HPA, metrics-server | 70 min |
+
+None of them is needed by a later lab. 10A's liveness restart storm and 12A's drain deadlock are
+the two worth demonstrating from the front.
+
 
 ## Day 5 — Infrastructure as Code and Continuous Delivery
 

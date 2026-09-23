@@ -1451,7 +1451,7 @@ HEAD is now at f1c7cab docs: explain readiness''',
    'Merge vs rebase, a rebase conflict, autosquash, undo — and a lease that saves a colleague'],
   'You have watched every advanced Git command work, and fail, where a mistake costs nothing',
   {'kicker': 'GOING FURTHER  ·  HANDS-ON',
-   'speaker': 'Lab guide: labs/lab-03a-git-going-further/README.md. Optional and self-paced; about 80 minutes '
+   'speaker': 'Lab guide: labs/lab-03-branching-and-collaboration/README-03A-git-going-further.md. Optional and self-paced; about 80 minutes '
    'in eight parts. setup-gym.sh builds the practice repository and rebuilds it in two seconds, so '
    'delegates can break it freely. Demo Part 5 (bisect) or Part 8 (the stale-info rejection) if you have time.'}),
 
@@ -1676,7 +1676,7 @@ HEAD is now at f1c7cab docs: explain readiness''',
    'Build one versioned, checksummed artefact and release it from a tag'],
   'A pinned, time-boxed, least-privilege pipeline that the audit tools pass with no findings',
   {'kicker': 'GOING FURTHER  ·  HANDS-ON',
-   'speaker': 'Lab guide: labs/lab-04a-act-and-pipeline-security/README.md. Optional; about 90 minutes; needs Lab 04, '
+   'speaker': 'Lab guide: labs/lab-04-github-actions-ci/README-04A-act-and-pipeline-security.md. Optional; about 90 minutes; needs Lab 04, '
    'Docker and about 6 GB of disk. Ask delegates to pre-pull catthehacker/ubuntu:act-24.04. Part 5 (script '
    'injection) is the one to demo from the front.'}),
 
@@ -1690,8 +1690,46 @@ HEAD is now at f1c7cab docs: explain readiness''',
    'Push a broken change and watch the merge get blocked'],
   'A GitLab project where a red pipeline cannot be merged, and a GitHub-to-GitLab translation table',
   {'kicker': 'GOING FURTHER  ·  HANDS-ON',
-   'speaker': 'Lab guide: labs/lab-04b-gitlab-ci/README.md. Optional; about 60 minutes plus account set-up. '
+   'speaker': 'Lab guide: labs/lab-04-github-actions-ci/README-04B-gitlab-ci.md. Optional; about 60 minutes plus account set-up. '
    'GitLab.com may ask new accounts for phone or card verification before pipelines run, so point delegates at '
    'Lab 00 Step 8.3 before the course. Debrief on the side-by-side table, especially required review on Free.'}),
 
 ]
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Per-lab ADVANCED decks.
+#
+# The same Going Further material, split so each lab folder ships only the
+# slides for its own optional lab. Sections A-C (Git) go with Lab 03A; section D
+# (reviews, CI, Jenkins, pipeline security) goes with Labs 04A and 04B. They are
+# slices of DAY2_EXTRA, so editing a slide there updates both decks.
+#
+#   cd _build && python build.py 2      (also writes these two)
+#   cd _build && python build.py labs   (only these two)
+# ─────────────────────────────────────────────────────────────────────────────
+
+_GIT_ADVANCED = DAY2_EXTRA[1:30]        # sections A, B, C + the Lab 03A slide
+_PIPE_ADVANCED = DAY2_EXTRA[30:]        # section D + the Lab 04A and 04B slides
+
+LAB03_ADVANCED = [
+  ('title', 2,
+   'Lab 03A — Git, Going Further',
+   'The advanced Git slides, for after class — everything Lab 03A puts your hands on',
+   ['A: more everyday Git — history in depth, stash, restore, revert',
+    'B: reset, reflog, cherry-pick, tag, bisect, clean',
+    'C: merging, rebasing, conflicts and the golden rule',
+    'Optional. Nothing on Day 3 onwards depends on it'],
+   'Practise it: labs/lab-03-branching-and-collaboration/README-03A-git-going-further.md'),
+] + _GIT_ADVANCED
+
+LAB04_ADVANCED = [
+  ('title', 2,
+   'Labs 04A and 04B — Pipelines, Going Further',
+   'The advanced pipeline slides, for after class — reviews, CI in depth, Jenkins and security',
+   ['Good reviews · CODEOWNERS · the change-control argument',
+    'Kinds of tests · build automation · version numbers',
+    'GitHub Actions in depth · Jenkins · securing the pipeline',
+    'Optional. Nothing on Day 3 onwards depends on it'],
+   'Practise it: README-04A-act-and-pipeline-security.md and README-04B-gitlab-ci.md'),
+] + _PIPE_ADVANCED

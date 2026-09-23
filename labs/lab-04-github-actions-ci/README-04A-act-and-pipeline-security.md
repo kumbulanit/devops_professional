@@ -5,6 +5,8 @@
 | **Day** | 2 — **optional**, after class or as homework |
 | **Duration** | About 90 minutes, in nine parts |
 | **Module** | 2 — Version Control and CI (the *Going Further* slides, section D) |
+| **Slides** | `Lab04AB_Advanced_Pipelines.pptx` — in this folder, 18 slides, read it first |
+| **Parent lab** | [Lab 04 — Build a CI Pipeline with GitHub Actions](README.md) |
 | **You will produce** | `act` working on your machine; a hardened `ci.yml` with a build job; `release.yml`; `Makefile`; two demo workflows; an audit that reports **no findings** |
 | **Feeds into** | Nothing depends on it. Lab 06 adds `build.yml` and Lab 17 adds `security.yml` beside the files you harden here |
 
@@ -1416,7 +1418,7 @@ pull-request title execute code, and your repository now has a pipeline that is 
 least-privileged, audited, and builds **one** checksummed, commit-named artefact that a tag turns
 into a release.
 
-**Next:** [Lab 04B — The same pipeline on GitLab CI](../lab-04b-gitlab-ci/README.md), or
+**Next:** [Lab 04B — The same pipeline on GitLab CI](README-04B-gitlab-ci.md), or
 [Lab 05 — Jenkins CI](../lab-05-jenkins-ci/README.md).
 
 ---

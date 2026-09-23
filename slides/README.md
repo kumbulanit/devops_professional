@@ -13,11 +13,30 @@ the day's labs together. The labs are finished after class. See
 | `Day2_Version_Control_and_CI.pptx` | 2 | 46 | 2b — Working together on code, for beginners, in 3 hours: branches, everyday Git commands, merge and rebase, pull requests, CI, GitHub Actions and Jenkins |
 | `Day2_Version_Control_and_CI_Going_Further.pptx` | 2 | 49 | *Optional reading, not taught:* single-command slides, stash, reset, reflog, cherry-pick, tag, bisect, clean, rebase in depth, reviews, CODEOWNERS, test types, Jenkins, pipeline security — plus lab slides for the hands-on Labs 03A, 04A and 04B |
 | `Day3_Containers_with_Docker.pptx` | 3 | 57 | 3 — Containers, images, Dockerfiles, Compose, networking, storage |
+| `Day3_Containers_with_Docker_Going_Further.pptx` | 3 | 26 | *Optional reading, not taught:* the build cache and BuildKit, docker history, cache mounts, multi-architecture, digests · Compose merging, profiles, limits · capabilities, OOM kills, the NAT path, debugging — plus lab slides for Labs 06A, 07A and 08A |
 | `Day4_Kubernetes.pptx` | 4 | 57 | 4 — Kubernetes |
+| `Day4_Kubernetes_Going_Further.pptx` | 4 | 24 | *Optional reading, not taught:* the four debugging commands, pod states, ephemeral containers, rollouts · RBAC, Secrets honestly, egress policy, config propagation, storage · HPA behaviour, scheduling, PDBs and drain — plus lab slides for Labs 10A, 11A and 12A |
 | `Day5_IaC_and_Continuous_Delivery.pptx` | 5 | 57 | 5 — IaC (Terraform, Ansible) · 6 — Continuous Delivery |
 | `Day6_DevSecOps_Observability_Enterprise.pptx` | 6 | 60 | 7 — DevSecOps · 8 — Observability · 9 — Enterprise · Appendix A |
 
-**340 taught slides (+ 49 optional reading) · 16:9 · 32 native-vector diagrams** — no images, so every diagram is editable and
+**Eight more decks live with the labs, not here.** Each *Going Further* deck is also published
+split by topic, beside the optional lab it teaches, so a delegate can be handed one folder:
+
+| Deck | Slides | Lives in |
+|---|---|---|
+| `Lab03A_Advanced_Git.pptx` | 32 | `labs/lab-03-branching-and-collaboration/` |
+| `Lab04AB_Advanced_Pipelines.pptx` | 18 | `labs/lab-04-github-actions-ci/` |
+| `Lab06A_Advanced_Builds.pptx` | 11 | `labs/lab-06-docker-images/` |
+| `Lab07A_Advanced_Compose.pptx` | 8 | `labs/lab-07-docker-compose-stack/` |
+| `Lab08A_Advanced_Hardening.pptx` | 9 | `labs/lab-08-docker-networking-volumes/` |
+| `Lab10A_Advanced_Debugging.pptx` | 10 | `labs/lab-10-k8s-deploy-app/` |
+| `Lab11A_Advanced_Access_and_Storage.pptx` | 8 | `labs/lab-11-k8s-config-secrets-storage/` |
+| `Lab12A_Advanced_Scaling.pptx` | 8 | `labs/lab-12-k8s-ingress-scaling/` |
+
+They are slices of the three Going Further decks above — rebuild them all with
+`cd _build && python build.py labs`.
+
+**340 taught slides (+ 99 optional reading) · 16:9 · 32 native-vector diagrams** — no images, so every diagram is editable and
 recolourable live in the room.
 
 ## What is on the slides

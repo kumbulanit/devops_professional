@@ -461,6 +461,18 @@ docker compose exec api id                          # → uid=10001 (not root)
 
 ---
 
+## ⭐ Advanced — optional, in this folder
+
+The stack runs. If you want the version of Compose that survives contact with more than one
+environment, it is beside this page — nothing on Day 4 onwards depends on it.
+
+| In this folder | What it is | Time | Needs |
+|---|---|---|---|
+| **[README-07A — Compose in Depth](README-07A-compose-in-depth.md)** | See what `docker compose config` really merges; split the stack into dev and UAT overlays; meet the `compose.override.yaml` that loads itself; hide tooling behind a profile; add CPU, memory and log limits and watch them bite; then destroy the database with `down -v` and restore it from a backup you took | 60 min, eight parts | Docker and the Lab 07 stack |
+| **`Lab07A_Advanced_Compose.pptx`** | The 8 slides behind it: merging and precedence, profiles, health gating, restart policies and limits | Read it first | PowerPoint |
+
+---
+
 ## 🧩 Stretch (homework)
 
 1. **Compose profiles.** Add `profiles: ["debug"]` to an adminer service and start it only

@@ -387,6 +387,18 @@ at `10/10` with the cluster idle means a metric is above target; re-read Step 5.
 
 ---
 
+## ⭐ Advanced — optional, in this folder
+
+The HPA scales and the Ingress routes. The advanced page is about controlling *how* it scales,
+*where* pods land, and what happens when a node is taken away — beside this page, and optional.
+
+| In this folder | What it is | Time | Needs |
+|---|---|---|---|
+| **[README-12A — Scaling, Scheduling and Disruption](README-12A-scaling-and-scheduling.md)** | Set HPA step sizes and stabilisation windows and watch scale-up and scale-down differ; read the scheduler's own reason for a Pending pod; reserve a node with a taint and let one workload back on; spread replicas within a chosen skew; drain a node while the service stays up — then write the budget that deadlocks the drain | 70 min, eight parts | The three-node Lab 09 cluster, the Lab 12 HPA, working metrics-server |
+| **`Lab12A_Advanced_Scaling.pptx`** | The 8 slides behind it: HPA behaviour, what decides scheduling, taints and topology spread, PDBs and drain | Read it first | PowerPoint |
+
+---
+
 ## 🧩 Stretch (homework)
 
 1. **TLS.** Generate a self-signed certificate, create a `kubernetes.io/tls` Secret, and add

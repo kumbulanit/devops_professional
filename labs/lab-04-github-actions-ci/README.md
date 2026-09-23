@@ -565,6 +565,23 @@ Merge the PR.
 
 ---
 
+## ⭐ Advanced — optional, in this folder
+
+Your pipeline works and it blocks bad merges. If you want to go further, both advanced labs and
+their slides sit **beside this page in the same folder** — nothing on Day 3 onwards depends on
+any of it.
+
+| In this folder | What it is | Time | Needs |
+|---|---|---|---|
+| **[README-04A — act and pipeline security](README-04A-act-and-pipeline-security.md)** | Run this very pipeline on your own machine in seconds with `act`; watch a secret leak past masking and a pull-request title execute its own commands, then close both holes; audit the workflows with actionlint and zizmor; pin every action to a commit; build one versioned, checksummed artefact and publish it from a tag | 90 min, nine parts | Docker running, ~6 GB disk, `gh` signed in |
+| **[README-04B — the same pipeline on GitLab CI](README-04B-gitlab-ci.md)** | Open and secure a GitLab account, push PayTrack API there, rewrite `ci.yml` as `.gitlab-ci.yml`, protect `main`, and prove a red pipeline cannot be merged — then compare the two platforms row by row | 60 min (+10 for the account) | A verified GitLab account |
+| **`Lab04AB_Advanced_Pipelines.pptx`** | The 18 advanced slides behind both labs: reviews and CODEOWNERS, kinds of tests, build automation, versioning, GitHub Actions in depth, Jenkins, and securing the pipeline | Read it first, or use it to teach the material | PowerPoint |
+
+**Suggested order:** the deck, then 04A (it hardens the pipeline you just built), then 04B if
+your organisation runs GitLab. 04A and 04B are independent of each other.
+
+---
+
 ## 🧩 Stretch (homework)
 
 1. **Add a status badge.** Put this at the top of your `README.md` — a visible red/green
@@ -576,9 +593,9 @@ Merge the PR.
 3. **Add `pytest --durations=5`** and find your slowest test. Keep the suite under 10
    minutes — the rule that keeps people waiting for it.
 4. **Run it locally** with [`act`](https://github.com/nektos/act), which executes workflows in
-   Docker on your machine. **[Lab 04A](../lab-04a-act-and-pipeline-security/README.md)** installs it,
+   Docker on your machine. **[Lab 04A](README-04A-act-and-pipeline-security.md)** installs it,
    runs this pipeline with it, and uses it to show secret masking, script injection, SHA pinning
-   and a versioned release. **[Lab 04B](../lab-04b-gitlab-ci/README.md)** builds the same pipeline on
+   and a versioned release. **[Lab 04B](README-04B-gitlab-ci.md)** builds the same pipeline on
    GitLab CI.
 
 ---
@@ -603,8 +620,8 @@ coverage floor, publishes artefacts, and **blocks any merge that breaks it**. De
 dependencies and Actions patched.
 
 **Next:** [Lab 05 — Jenkins CI on localhost](../lab-05-jenkins-ci/README.md) ·
-*Optional:* [Lab 04A — act and pipeline security](../lab-04a-act-and-pipeline-security/README.md) ·
-[Lab 04B — GitLab CI](../lab-04b-gitlab-ci/README.md)
+*Optional:* [Lab 04A — act and pipeline security](README-04A-act-and-pipeline-security.md) ·
+[Lab 04B — GitLab CI](README-04B-gitlab-ci.md)
 
 ---
 

@@ -500,6 +500,18 @@ kubectl get pods -o jsonpath='{range .items[*]}{.metadata.name}{"\t"}{.spec.node
 
 ---
 
+## ⭐ Advanced — optional, in this folder
+
+The application runs and survives a pod being deleted. The advanced page is about the other
+day — the one where it does not run — and it sits beside this one. Nothing later depends on it.
+
+| In this folder | What it is | Time | Needs |
+|---|---|---|---|
+| **[README-10A — Debugging and Rollouts](README-10A-debugging-and-rollouts.md)** | Produce the six failures Kubernetes actually serves up — Pending, quota refusal, ImagePullBackOff, CrashLoopBackOff, OOMKilled, and Running-but-not-Ready — and diagnose each from the cluster's own output; get a shell into an image that has none with `kubectl debug`; cause a liveness restart storm; then pause, undo and read a rollout | 70 min, ten parts | The Lab 09 cluster and this lab's deployment |
+| **`Lab10A_Advanced_Debugging.pptx`** | The 10 slides behind it: get/describe/logs/events, what each pod state means, ephemeral containers, rollout history | Read it first | PowerPoint |
+
+---
+
 ## 🧩 Stretch (homework)
 
 1. **`kubectl explain`.** Run `kubectl explain deployment.spec.strategy.rollingUpdate` —

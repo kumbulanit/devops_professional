@@ -76,7 +76,13 @@ def check(pdf):
 
 
 if __name__ == '__main__':
-    decks = sorted(glob.glob(os.path.join(SLIDES, '*.pptx')))
+    # Default: every taught deck, plus the per-lab ADVANCED decks that live in labs/.
+    # Pass paths to check only those:  python qa.py ../labs/lab-03-*/Lab03A_Advanced_Git.pptx
+    LABS = os.path.abspath(os.path.join(HERE, '..', 'labs'))
+    decks = [os.path.abspath(a) for a in sys.argv[1:]] or (
+        sorted(glob.glob(os.path.join(SLIDES, '*.pptx')))
+        + sorted(glob.glob(os.path.join(LABS, '*', '*.pptx'))))
+    decks = [d for d in decks if not os.path.basename(d).startswith('~$')]
     total_issues = 0
     for p in decks:
         pdf = convert(p)
