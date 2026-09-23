@@ -28,16 +28,50 @@ minutes, and that feeling is the learning outcome.
 
 ---
 
+## Before you start — how to run the commands
+
+**No Linux experience needed.** Every instruction is **one command in one grey box**, numbered in
+the order you run it. This lab moves between the **terminal** and the **Jenkins website** running
+on your own machine; each instruction says which.
+
+- **Open a terminal** with `Ctrl` + `Alt` + `T`; it shows a line ending in `$`, the prompt.
+- **Run a command:** click into the terminal, paste one box with **`Ctrl` + `Shift` + `V`**, press
+  `Enter`, and wait for the prompt to come back. Some commands here take minutes.
+- **A box that starts `cat > … <<'EOF'` is one command** — copy all of it, the final `EOF`
+  included.
+- **A line starting with `#` inside a box is a note**, not something to run.
+- Symbols: `~` home folder · `cd` move into a folder · `-d` in a docker command means "in the
+  background" · `>` writes a file.
+
+---
+
 ## Step 1 — Run Jenkins in Docker
 
+**1. Create a folder for the Jenkins files.**
+
 ```bash
-mkdir -p ~/devops-course/jenkins && cd ~/devops-course/jenkins
+mkdir -p ~/devops-course/jenkins
+```
+**What this does:** `mkdir -p` creates the folder and says nothing if it already exists.
+
+**2. Move into it.**
+
+```bash
+cd ~/devops-course/jenkins
+```
+**What this does:** the next two files are written here.
+
+**3. Create somewhere for Jenkins to keep its data.**
+
+```bash
 docker volume create jenkins_home
 ```
-**What this does:** creates a **named volume** for Jenkins' state. Jenkins keeps everything —
-job configuration, build history, plugins, credentials — in `/var/jenkins_home`. Without a
-volume, `docker rm` erases your entire CI system. This is the day-3 storage lesson arriving
-a day early.
+**What this does:** creates a **named volume** — storage that lives outside the container.
+Jenkins keeps everything (job configuration, build history, plugins, credentials) in
+`/var/jenkins_home`; without a volume, deleting the container erases your entire CI system. This
+is the day-3 storage lesson arriving a day early.
+
+**4. Write the image definition.** One command — copy all of it, including the final `EOF`:
 
 ```bash
 cat > Dockerfile <<'EOF'
@@ -73,10 +107,16 @@ EOF
   `cleanWs()`; neither comes with the Pipeline plugins, and a pipeline that names a missing step fails
   before its first stage.
 
+**5. Build the image.**
+
 ```bash
 docker build -t jenkins-course:1.0 .
 ```
-**What this does:** builds the image and tags it. First build takes 2–3 minutes.
+**What this does:** reads the `Dockerfile` in the current folder (that is what the final `.`
+means) and builds an image named `jenkins-course` version `1.0` (`-t` for tag). The first build
+takes 2–3 minutes and prints a line per step.
+
+**6. Start Jenkins.** One command over seven lines — copy all of it:
 
 ```bash
 docker run -d \
@@ -103,17 +143,22 @@ docker run -d \
 > container — including any build. Module 7 §7.4 covers why CI systems are high-value
 > targets; this is that lesson in concrete form.
 
+**7. Watch it start up.**
+
 ```bash
 docker logs -f jenkins
 ```
-**What this does:** follows the container's stdout (`-f`). Wait for the banner containing the
-initial admin password, then press `Ctrl+C`.
+**What this does:** prints what the container is writing, and `-f` keeps following it. Wait for
+the banner containing the initial admin password (about a minute), then press **`Ctrl` + `C`** to
+stop following — that stops the *watching*, not Jenkins.
+
+**8. Print the initial password.**
 
 ```bash
 docker exec jenkins cat /var/jenkins_home/secrets/initialAdminPassword
 ```
-**What this does:** `docker exec` runs a command **inside a running container**. Copy the
-password.
+**What this does:** `docker exec` runs a command **inside the running container** — here `cat`,
+which prints a file. Select the password with the mouse and copy it with `Ctrl` + `Shift` + `C`.
 
 ---
 
@@ -135,11 +180,36 @@ password.
 
 ## Step 3 — Write the Jenkinsfile
 
+**1. Go to your project.**
+
 ```bash
 cd ~/devops-course/paytrack-api-team
-git switch main && git pull
+```
+**What this does:** the repository from Labs 03 and 04.
+
+**2. Go to the main branch.**
+
+```bash
+git switch main
+```
+**What this does:** start the change from the mainline.
+
+**3. Update it.**
+
+```bash
+git pull
+```
+**What this does:** brings in Lab 04's merged pipeline.
+
+**4. Create a branch.**
+
+```bash
 git switch -c ci/add-jenkinsfile
 ```
+**What this does:** the Jenkinsfile is code, so it goes through a pull request like everything
+else.
+
+**5. Write the Jenkinsfile.** One command — copy all of it, including the final `EOF`:
 
 ```bash
 cat > Jenkinsfile <<'EOF'
@@ -256,16 +326,33 @@ EOF
 | `post { always / success / failure / cleanup }` | Runs after the stages, regardless of outcome |
 | `junit` | Parses the JUnit XML into Jenkins' test-trend UI |
 
+**6. Stage it.**
+
 ```bash
 git add Jenkinsfile
+```
+**What this does:** stages the new file by name.
+
+**7. Commit it.**
+
+```bash
 git commit -m "ci: add Jenkins declarative pipeline
 
 Mirrors .github/workflows/ci.yml so the two CI models can be compared
 directly: same lint, same tests, same coverage, same artefact."
+```
+**What this does:** one command over several lines — copy all of it, both quote marks included.
+
+**8. Push it.**
+
+```bash
 git push -u origin ci/add-jenkinsfile
 ```
+**What this does:** uploads the branch and prints the pull-request link.
+
 Open and merge the PR — note that **your GitHub Actions CI gates this Jenkinsfile change**,
-which is a neat illustration of pipeline-as-code being just code.
+which is a neat illustration of pipeline-as-code being just code. Jenkins only discovers the file
+once it is on `main`.
 
 ---
 
@@ -310,10 +397,13 @@ Open `paytrack-api → main`:
 
 ✅ **Checkpoint:** a green build with all stages passed and 19 tests recorded.
 
+**Look at where Jenkins keeps that state.**
+
 ```bash
 docker exec jenkins ls -la /var/jenkins_home/jobs/paytrack-api/branches/
 ```
-**What this does:** shows Jenkins' on-disk job state — one directory per discovered branch.
+**What this does:** lists a folder inside the running container — one directory per discovered
+branch.
 Useful for understanding that a Jenkins controller is a **stateful server**, not a stateless
 runner. That single fact drives most of the operational cost.
 
@@ -321,7 +411,9 @@ runner. That single fact drives most of the operational cost.
 
 ## Step 6 — Compare, honestly
 
-Fill this in from what you have just experienced, not from what you have read:
+Fill this in from what you have just experienced, not from what you have read.
+
+**1. Create the comparison file.** One command, ending at `EOF`:
 
 ```bash
 cat > ~/devops-course/paytrack-api-team/docs/ci-comparison.md <<'EOF'
@@ -346,8 +438,16 @@ cat > ~/devops-course/paytrack-api-team/docs/ci-comparison.md <<'EOF'
 
 ## Which would I choose for my organisation, and why
 EOF
+```
+**What this does:** writes the empty comparison table. Nothing is printed.
+
+**2. Fill it in.**
+
+```bash
 nano ~/devops-course/paytrack-api-team/docs/ci-comparison.md
 ```
+**What this does:** opens the file in the **nano** editor. Type your answers, save with
+`Ctrl` + `O` and `Enter`, and leave with `Ctrl` + `X`.
 
 **The honest summary:**
 
@@ -369,16 +469,22 @@ operate is the one you do not have.
 
 ## Step 7 — Clean up (or keep it)
 
+**Stop Jenkins, keeping everything.**
+
 ```bash
-docker stop jenkins            # keeps the container and the volume
-# docker start jenkins         # bring it back later
+docker stop jenkins
 ```
-**What this does:** stops the container without deleting it. To remove it entirely:
-```bash
+**What this does:** stops the container without deleting it. Your volume, jobs and build history
+survive. Bring it back later with `docker start jenkins`.
+
+**To delete it completely** — only if you are sure:
+
+```
 # docker rm -f jenkins && docker volume rm jenkins_home    # ⚠️ deletes ALL Jenkins state
 ```
-**What this does:** `rm -f` force-removes the running container; `volume rm` deletes the
-volume — **all jobs, history and credentials, unrecoverable.** Left commented deliberately.
+**What this would do:** `rm -f` force-removes the running container and `volume rm` deletes the
+volume — **all jobs, history and credentials, unrecoverable.** It is shown commented out (with a
+leading `#`) deliberately, and this box is not marked as a command to run.
 
 ---
 

@@ -23,11 +23,51 @@ minutes/month on private repositories on the Free plan.
 
 - Lab 03 complete: `paytrack-api` on GitHub with branch protection
 
-🔁 **RECOVER**
+---
+
+## Before you start — how to run the commands
+
+**No Linux experience needed.** Every instruction is **one command in one grey box**, numbered in
+the order you run it. This lab moves between the **terminal** and the **GitHub website**; each
+instruction says which.
+
+- **Open a terminal** with `Ctrl` + `Alt` + `T`; it shows a line ending in `$`, the prompt.
+- **Run a command:** click into the terminal, paste one box with **`Ctrl` + `Shift` + `V`**, press
+  `Enter`, and wait for the prompt to come back.
+- **Most boxes print nothing** when they succeed.
+- **A box that starts `cat > … <<'EOF'` or `python3 - <<'PY'` is one command** — copy all of it,
+  including the last line, and press `Enter` once.
+- **Replace `<your-username>`** (angle brackets included) with your GitHub username.
+- Symbols: `~` home folder · `cd` move into a folder · `>` write a file · `|` pass output on ·
+  `&&` only if that worked · `||` only if that failed.
+
+🔁 **RECOVER — if you do not have the team clone**
+
 ```bash
-cd ~/devops-course && git clone https://github.com/<your-username>/paytrack-api.git paytrack-api-team 2>/dev/null
-cd paytrack-api-team && git switch main && git pull
+cd ~/devops-course
 ```
+**What this does:** moves into the folder that holds your work.
+
+```bash
+git clone https://github.com/<your-username>/paytrack-api.git paytrack-api-team 2>/dev/null
+```
+**What this does:** clones your repository into `paytrack-api-team`. `2>/dev/null` hides the error
+if the folder already exists.
+
+```bash
+cd paytrack-api-team
+```
+**What this does:** moves into the clone.
+
+```bash
+git switch main
+```
+**What this does:** puts you on the main branch.
+
+```bash
+git pull
+```
+**What this does:** downloads anything merged since your last pull.
 
 ---
 
@@ -42,19 +82,49 @@ cd paytrack-api-team && git switch main && git pull
                      └── uses:  a reusable Action
 ```
 
+**1. Go to your clone.**
+
 ```bash
 cd ~/devops-course/paytrack-api-team
-git switch main && git pull
+```
+**What this does:** every command in this lab runs from here unless it says otherwise.
+
+**2. Go to the main branch.**
+
+```bash
+git switch main
+```
+**What this does:** start the new branch from the mainline, not from leftover work.
+
+**3. Update it.**
+
+```bash
+git pull
+```
+**What this does:** downloads everything merged in Lab 03.
+
+**4. Create a branch for the pipeline.**
+
+```bash
 git switch -c ci/add-github-actions
+```
+**What this does:** `-c` creates the branch and moves you onto it. **The pipeline is code**, so it
+goes through the same review process as everything else.
+
+**5. Create the folder GitHub looks in.**
+
+```bash
 mkdir -p .github/workflows
 ```
-**What this does:** starts a feature branch for the pipeline (the pipeline is code, so it goes
-through the same review process as everything else) and creates the directory GitHub scans.
-**The path `.github/workflows/` is fixed** — GitHub will not find workflows anywhere else.
+**What this does:** creates the folder (and its parent). **The path `.github/workflows/` is
+fixed** — GitHub will not find workflows anywhere else.
 
 ---
 
 ## Step 2 — Write the pipeline
+
+**1. Write the workflow file.** This box is **one command** — copy every line of it, including
+the final `EOF`, and press `Enter` once. Nothing is printed.
 
 ```bash
 cat > .github/workflows/ci.yml <<'EOF'
@@ -210,36 +280,86 @@ EOF
 
 ## Step 3 — Validate before pushing
 
+**1. Check the file is valid YAML.**
+
 ```bash
 python3 -c "import yaml,sys; yaml.safe_load(open('.github/workflows/ci.yml')); print('YAML is valid')"
 ```
-**What this does:** parses the file with Python's YAML library. **YAML indentation errors are
-the number one cause of "my workflow does not appear"** — GitHub silently ignores files it
-cannot parse. Catching it locally saves a push-and-wait cycle.
+**What this does:** reads the file the way GitHub will. **Indentation errors are the number one
+cause of "my workflow does not appear"** — GitHub silently ignores files it cannot parse. Catching
+it here saves a push-and-wait cycle.
+
+Now run locally exactly what CI will run. **If it fails here it will fail there** — and finding
+out in 3 seconds beats finding out in 3 minutes.
+
+**2. Move into the application folder.**
 
 ```bash
 cd ~/devops-course/paytrack-api-team/app
+```
+**What this does:** the Python project lives here.
+
+**3. Create the virtual environment if this clone has none.**
+
+```bash
 [ -d .venv ] || python3 -m venv .venv
+```
+**What this does:** `[ -d .venv ]` asks whether the folder exists; `||` means "if not, do the next
+thing". A fresh clone never has one, because `.venv/` is ignored and so is never pushed.
+
+**4. Activate it.**
+
+```bash
 source .venv/bin/activate
+```
+**What this does:** `source` runs the file **in your current shell** so it can change your `PATH`;
+the prompt gains `(.venv)`. It must be its own command — inside brackets the change would be lost
+when that sub-shell ended, and `pytest` would be *command not found*.
+
+**5. Install the tools.**
+
+```bash
 pip install -q -r requirements-dev.txt
+```
+**What this does:** installs the pinned versions quietly (`-q`).
+
+**6. Run the linter.**
+
+```bash
 flake8 src tests
+```
+**What this does:** checks style and obvious errors. **It prints nothing when the code is
+clean** — that is a pass.
+
+**7. Run the tests with coverage.**
+
+```bash
 pytest -q --cov=src --cov-report=term-missing
+```
+**What this does:** runs the suite quietly (`-q`) and prints a coverage table naming any lines no
+test touches. Expect `19 passed` and coverage above 70%.
+
+**8. Return to the repository root.**
+
+```bash
 cd ~/devops-course/paytrack-api-team
 ```
-**What this does:** runs locally exactly what CI will run. **If it fails here it will fail
-there** — and finding out in 3 seconds beats finding out in 3 minutes. The first three lines
-create the virtual environment only if this clone does not have one (a fresh clone never does —
-`.venv/` is ignored) and activate it **in your current shell**; each is a line of its own because
-activating inside `( … )` would be lost when the subshell ends. `flake8` prints nothing when the
-code is clean. The last line always returns you to the repository root, which the `git add`
-below needs.
+**What this does:** the `git add` below only works from here.
 
 ---
 
 ## Step 4 — Push and watch it run
 
+**1. Stage the workflow file.**
+
 ```bash
 git add .github/workflows/ci.yml
+```
+**What this does:** stages that one file by name, so nothing else can slip into the commit.
+
+**2. Commit it.**
+
+```bash
 git commit -m "ci: add GitHub Actions pipeline
 
 Runs flake8, black (advisory) and pytest across Python 3.11 and 3.12 on every
@@ -248,16 +368,27 @@ publishes JUnit and coverage artefacts.
 
 The single 'CI passed' job is the stable required status check, so the matrix
 can change without editing the branch protection rule."
+```
+**What this does:** one command over several lines — copy all of it, both quote marks included.
+
+**3. Push the branch.**
+
+```bash
 git push -u origin ci/add-github-actions
 ```
+**What this does:** uploads it and prints a URL for opening the pull request.
 
-Open the PR on GitHub. Within seconds the checks appear at the bottom.
+**4. Open the pull request** on GitHub from that link. Within seconds the checks appear at the
+bottom of the page.
+
+**5. Follow the run in the terminal (optional).**
 
 ```bash
 gh run watch 2>/dev/null || echo "Install the GitHub CLI (sudo apt install gh) or watch in the browser"
 ```
-**What this does:** if you have the GitHub CLI, streams the run live in your terminal.
-Otherwise use the **Actions** tab.
+**What this does:** if the GitHub CLI is installed (Lab 00 Step 8.1), it streams the run live;
+otherwise it prints the fallback message and you use the **Actions** tab. Press `Ctrl` + `C` to
+stop watching.
 
 ✅ **Checkpoint:** the run shows `lint`, `test (3.11)`, `test (3.12)` and `CI passed`, all
 green. Click into `test (3.12)` and read the coverage table and the step summary.
@@ -278,9 +409,30 @@ Merge the PR.
 
 ## Step 6 — Prove the gate works
 
+**1. Go back to `main`.**
+
 ```bash
-git switch main && git pull
+git switch main
+```
+**What this does:** you merged the pipeline, so start from there.
+
+**2. Get the merged pipeline.**
+
+```bash
+git pull
+```
+**What this does:** your local `main` now contains `ci.yml`.
+
+**3. Create a branch for the deliberate break.**
+
+```bash
 git switch -c test/deliberately-break-ci
+```
+**What this does:** the branch name says exactly what it is for.
+
+**4. Break the health endpoint.** One command, ending at `PY`:
+
+```bash
 python3 - <<'PY'
 import pathlib
 p = pathlib.Path("app/src/app.py")
@@ -291,11 +443,30 @@ assert "BROKEN" in s, "patch did not apply"
 p.write_text(s)
 print("broke the /health contract")
 PY
-git add app/src/app.py && git commit -m "test: deliberately break the health endpoint contract"
+```
+**What this does:** makes `/health` answer `"BROKEN"`, which violates the assertion in the test
+called `test_health_is_always_ok`. It prints `broke the /health contract`.
+
+**5. Stage it.**
+
+```bash
+git add app/src/app.py
+```
+**What this does:** stages the broken file.
+
+**6. Commit it.**
+
+```bash
+git commit -m "test: deliberately break the health endpoint contract"
+```
+**What this does:** records the break.
+
+**7. Push it and open a pull request** from the link it prints.
+
+```bash
 git push -u origin test/deliberately-break-ci
 ```
-**What this does:** changes `/health` to return `"BROKEN"`, which violates the assertion in
-`test_health_is_always_ok`. Open a PR.
+**What this does:** uploads the branch, which starts the pipeline.
 
 ✅ **Checkpoint — the important one:**
 1. `test` goes **red**, and so does `CI passed`.
@@ -306,21 +477,44 @@ git push -u origin test/deliberately-break-ci
 You have just built a control that applies to 100 % of changes, automatically, with no
 meeting. That is the DevOps governance argument from Module 9 §9.1, demonstrated.
 
+Clean up — three commands.
+
 ```bash
 git switch main
+```
+**What this does:** you cannot delete the branch you are standing on.
+
+```bash
 git push origin --delete test/deliberately-break-ci
+```
+**What this does:** deletes the branch on GitHub, which also closes the pull request.
+
+```bash
 git branch -D test/deliberately-break-ci
 ```
-**What this does:** closes the PR by deleting the remote branch (`--delete`), then deletes the
-local branch (`-D` = force-delete an unmerged branch).
+**What this does:** deletes your local copy. `-D` forces it, because the branch was never merged.
 
 ---
 
 ## Step 7 — Dependabot
 
+**1. Create a branch.**
+
 ```bash
 git switch -c ci/add-dependabot
+```
+**What this does:** configuration changes go through a pull request too.
+
+**2. Make sure the folder exists.**
+
+```bash
 mkdir -p .github
+```
+**What this does:** a no-op if it is already there.
+
+**3. Write the Dependabot configuration.** One command, ending at `EOF`:
+
+```bash
 cat > .github/dependabot.yml <<'EOF'
 version: 2
 updates:
@@ -339,14 +533,33 @@ updates:
     directory: /app
     schedule: { interval: weekly }
 EOF
+```
+**What this does:** writes the file that tells **Dependabot** — GitHub's built-in dependency
+updater — what to watch. Nothing is printed.
+
+**4. Stage it.**
+
+```bash
 git add .github/dependabot.yml
+```
+**What this does:** stages the one file.
+
+**5. Commit it.**
+
+```bash
 git commit -m "ci: enable Dependabot for pip, actions and docker"
+```
+**What this does:** records it.
+
+**6. Push it.**
+
+```bash
 git push -u origin ci/add-dependabot
 ```
-**What this does:** Dependabot opens pull requests when a dependency has a newer or
-non-vulnerable version. Each PR runs through the CI you just built, so **you find out
-immediately whether the upgrade is safe**. The `github-actions` ecosystem is the one people
-forget, and it is the one that patches your supply chain.
+**What this does:** uploads the branch. Dependabot now opens a pull request whenever a dependency
+has a newer or non-vulnerable version, and **each of those PRs runs through the CI you just
+built**, so you find out immediately whether the upgrade is safe. The `github-actions` ecosystem
+is the one people forget — and it is the one that patches your supply chain.
 
 Merge the PR.
 

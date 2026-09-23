@@ -120,7 +120,7 @@ nginx, two API replicas, PostgreSQL — started with one `docker compose up` (La
 
 ## Day 4 — Kubernetes for DevOps
 
-**Module:** 4 · **Deck:** `Day4_Kubernetes.pptx` (55 slides)
+**Module:** 4 · **Deck:** `Day4_Kubernetes.pptx` (57 slides)
 
 | From | To | Min | Block | Type |
 |---|---|---|---|---|

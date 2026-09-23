@@ -13,11 +13,11 @@ the day's labs together. The labs are finished after class. See
 | `Day2_Version_Control_and_CI.pptx` | 2 | 46 | 2b — Working together on code, for beginners, in 3 hours: branches, everyday Git commands, merge and rebase, pull requests, CI, GitHub Actions and Jenkins |
 | `Day2_Version_Control_and_CI_Going_Further.pptx` | 2 | 49 | *Optional reading, not taught:* single-command slides, stash, reset, reflog, cherry-pick, tag, bisect, clean, rebase in depth, reviews, CODEOWNERS, test types, Jenkins, pipeline security — plus lab slides for the hands-on Labs 03A, 04A and 04B |
 | `Day3_Containers_with_Docker.pptx` | 3 | 57 | 3 — Containers, images, Dockerfiles, Compose, networking, storage |
-| `Day4_Kubernetes.pptx` | 4 | 55 | 4 — Kubernetes |
+| `Day4_Kubernetes.pptx` | 4 | 57 | 4 — Kubernetes |
 | `Day5_IaC_and_Continuous_Delivery.pptx` | 5 | 57 | 5 — IaC (Terraform, Ansible) · 6 — Continuous Delivery |
 | `Day6_DevSecOps_Observability_Enterprise.pptx` | 6 | 60 | 7 — DevSecOps · 8 — Observability · 9 — Enterprise · Appendix A |
 
-**338 taught slides (+ 49 optional reading) · 16:9 · 32 native-vector diagrams** — no images, so every diagram is editable and
+**340 taught slides (+ 49 optional reading) · 16:9 · 32 native-vector diagrams** — no images, so every diagram is editable and
 recolourable live in the room.
 
 ## What is on the slides

@@ -31,14 +31,60 @@ environment is correct — and that you can re-run at the start of any day.
 
 ---
 
+## Before you start — how to use a terminal
+
+**This course assumes no Linux experience.** Everything below is **one command in one grey box**,
+numbered in the order you run it. Read this table once and you have all you need:
+
+| Question | Answer |
+|---|---|
+| **How do I open a terminal?** | Press `Ctrl` + `Alt` + `T`. (Or press the ⊞ key, type `terminal`, press `Enter`.) A window opens showing a line that ends in `$` — the **prompt**. |
+| **How do I run a command?** | Click into the terminal window, type or paste the contents of one box, then press `Enter`. |
+| **How do I paste?** | Copy from this page with `Ctrl` + `C`, then paste into the terminal with **`Ctrl` + `Shift` + `V`**. In a terminal, plain `Ctrl` + `V` does nothing. |
+| **When is it finished?** | When the `$` prompt comes back. Some commands here download hundreds of megabytes — wait for the prompt before running the next box. |
+| **Nothing was printed!** | Normal. Many commands say nothing when they succeed: in Linux, silence means "done". |
+| **It asked for a password** | Any command starting with `sudo` does. Type your **login** password. **Nothing appears as you type** — not even dots. Press `Enter`. |
+| **The screen filled up and the last line is `:` or `(END)`** | You are in a scrollable view. Press `q` to get back to the prompt. |
+| **It seems stuck** | Press `Ctrl` + `C` to cancel and get the prompt back. |
+| **An editor opened and I am trapped** | It is **nano**. Save and leave with `Ctrl` + `O`, `Enter`, then `Ctrl` + `X`. |
+| **I typed it wrong** | Nothing is broken. Read the error, then type it again. Upper and lower case matter, and so do spaces. |
+
+**Symbols you will meet in the boxes:**
+
+| Symbol | Means |
+|---|---|
+| `sudo` | Run this one command as the machine's administrator. Needed to install software |
+| `~` | Your home folder — `/home/<your-name>`. `~/devops-course` is a folder inside it |
+| `cd` | **C**hange **D**irectory: move into a folder. Everything you type afterwards happens there |
+| `\|` | "Pipe": send what the first command prints into the second command |
+| `>` / `>>` | Put what the command prints **into** a file / **onto the end of** a file |
+| `$(…)` | Run the command in the brackets first, and use its answer here |
+| `&&` | Only run the next part if this part succeeded |
+| `\` at the end of a line | The command continues on the next line. Copy **all** the lines of the box |
+| `#` | A note for humans; the computer ignores the rest of the line |
+
+---
+
 ## The fast path — one script
 
-If you just want a working machine, run the installer and skip to Step 7:
+If you just want a working machine, run these two commands and skip to Step 7.
+
+**1. Download the course material.**
 
 ```bash
 git clone https://github.com/kumbulanit/devops_professional.git ~/devops-course/course-material
+```
+**What this does:** `git clone` copies a project from the internet onto your machine — here into
+the folder `~/devops-course/course-material`. It prints a few progress lines and ends with the
+prompt.
+
+**2. Run the installer.**
+
+```bash
 sudo ~/devops-course/course-material/scripts/install-ubuntu24.sh
 ```
+**What this does:** runs the installer script as administrator (so it may install software). It
+prints a line per tool and takes 10–20 minutes the first time.
 **What this does:** installs and verifies **everything the six days need** — base packages
 (including `ss`, `lsof`, `dig` and `nc`, which the labs use), Docker + Compose, the GitHub CLI,
 kubectl, k3d, Helm, kubeseal, Terraform, Ansible, Trivy, Gitleaks, Syft, pre-commit and **act** (which runs
@@ -73,6 +119,8 @@ the supply-chain lesson from Module 7 arriving four days early.
 
 ## Step 1 — Confirm the base system
 
+**1. Check which Ubuntu you are on.**
+
 ```bash
 lsb_release -a
 ```
@@ -80,34 +128,71 @@ lsb_release -a
 see 22.04 the labs still work, but package names and the `docker compose` plugin path may
 differ from what is written here.
 
-```bash
-nproc && free -h && df -h /
-```
-**What this does:** three checks in one line — `nproc` prints the CPU count, `free -h` prints
-memory in human-readable units, `df -h /` prints free space on the root filesystem.
-You need **≥ 4 CPUs, ≥ 8 GB RAM (or ≥ 4 GB with swap), ≥ 40 GB free**. Day 4 runs a
-three-node Kubernetes cluster and day 6 adds Prometheus and Grafana; under-provisioning here
-surfaces as unexplained pod evictions on day 6.
+**2. Count your CPUs.**
 
 ```bash
-sudo apt-get update && sudo apt-get install -y \
+nproc
+```
+**What this does:** prints the number of processor cores as a single number. You need **4 or
+more**.
+
+**3. Check your memory.**
+
+```bash
+free -h
+```
+**What this does:** prints memory in human-readable units (`-h`). Read the `Mem:` row, `total`
+column: you need **8 GB**, or 4 GB plus swap.
+
+**4. Check your free disk space.**
+
+```bash
+df -h /
+```
+**What this does:** **d**isk **f**ree for `/`, the main filesystem. The `Avail` column must show
+**40 GB or more**. Day 4 runs a three-node Kubernetes cluster and day 6 adds Prometheus and
+Grafana; under-provisioning here surfaces as unexplained pod evictions on day 6.
+
+**5. Refresh the list of available software.**
+
+```bash
+sudo apt-get update
+```
+**What this does:** `apt-get` is Ubuntu's software installer; `update` refreshes its local
+catalogue of what is available. Without it, an install can fail on a stale list. It prints a
+page of `Hit:`/`Get:` lines.
+
+**6. Install the base packages.**
+
+```bash
+sudo apt-get install -y \
   curl wget git jq unzip ca-certificates gnupg lsb-release apt-transport-https \
   build-essential python3 python3-pip python3-venv tree htop net-tools
 ```
-**What this does:**
-- `apt-get update` refreshes the package index (the local list of what is available). Without
-  it, `install` may fail on a stale index.
-- `install -y` installs without prompting. Each package earns its place: `curl`/`wget`
-  download things; `jq` parses JSON (used constantly with `kubectl -o json`); `gnupg` and
-  `ca-certificates` verify repository signatures; `build-essential` compiles Python wheels;
-  `python3-venv` creates isolated Python environments; `tree` renders directory structure in
-  lab checkpoints.
+**What this does:** installs all of those packages in one go. The box is **one command** spread
+over three lines — the `\` at the end of a line means "continues below", so copy all three lines.
+`-y` answers "yes" to the confirmation prompt. Each package earns its place: `curl`/`wget`
+download things; `jq` reads JSON (used constantly with `kubectl -o json`); `gnupg` and
+`ca-certificates` verify repository signatures; `build-essential` compiles Python packages;
+`python3-venv` creates isolated Python environments; `tree` draws folder structures in lab
+checkpoints.
 
-✅ **Checkpoint**
+✅ **Checkpoint** — three commands, each printing one version.
+
 ```bash
-python3 --version && git --version && jq --version
+python3 --version
 ```
-Expect Python **3.12.x**, git **2.43+**, jq **1.7+**.
+**What this does:** expect **3.12.x**.
+
+```bash
+git --version
+```
+**What this does:** expect **2.43** or newer.
+
+```bash
+jq --version
+```
+**What this does:** expect **1.7** or newer.
 
 ---
 
@@ -116,44 +201,79 @@ Expect Python **3.12.x**, git **2.43+**, jq **1.7+**.
 Install from Docker's own repository, **not** from Ubuntu's `docker.io` package — the Ubuntu
 package lags badly and ships an old Compose.
 
+**1. Make the folder that holds repository signing keys.**
+
 ```bash
 sudo install -m 0755 -d /etc/apt/keyrings
+```
+**What this does:** `install -d` creates a directory and sets its permissions in one step;
+`-m 0755` means "everyone can read it, only the administrator can change it". Nothing is printed.
+
+**2. Download Docker's signing key into that folder.**
+
+```bash
 curl -fsSL https://download.docker.com/linux/ubuntu/gpg \
   | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+```
+**What this does:** one command over two lines. `curl` downloads Docker's public key (`-fsSL` =
+fail on error, stay silent, still show errors, follow redirects), the `|` passes it to `gpg`,
+which converts it from text to the binary form apt expects (`--dearmor`) and saves it (`-o`).
+
+**3. Let apt read the key.**
+
+```bash
 sudo chmod a+r /etc/apt/keyrings/docker.gpg
 ```
-**What this does:** creates the directory for third-party repository signing keys, downloads
-Docker's public GPG key (`-fsSL` = fail on error, silent, show errors, follow redirects),
-converts it from ASCII-armoured to binary (`--dearmor`) which is what `apt` expects, and
-makes it world-readable so `apt` can read it as a non-root process.
+**What this does:** `chmod a+r` gives **a**ll users **r**ead permission, so apt can use the key
+without being root.
+
+**4. Add Docker's software repository.**
 
 ```bash
 echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] \
 https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" \
   | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
 ```
-**What this does:** writes the Docker apt repository definition.
-`$(dpkg --print-architecture)` resolves to `amd64` or `arm64`; `signed-by=` binds this
-repository to that one key so it cannot sign packages for any other repo;
-`$(. /etc/os-release && echo "$VERSION_CODENAME")` resolves to `noble` on 24.04.
+**What this does:** one command over three lines — copy all of it. It writes a line telling apt
+where Docker's packages live. `$(dpkg --print-architecture)` fills in `amd64` or `arm64`;
+`signed-by=` ties this repository to that one key, so it cannot vouch for any other;
+`$(. /etc/os-release && echo "$VERSION_CODENAME")` fills in `noble` on 24.04. `tee` writes the
+line to a file as administrator, and `> /dev/null` throws away the copy it would print.
+
+**5. Refresh the catalogue so apt sees the new repository.**
 
 ```bash
 sudo apt-get update
+```
+**What this does:** as in Step 1 — but now the list includes Docker's packages.
+
+**6. Install Docker.**
+
+```bash
 sudo apt-get install -y docker-ce docker-ce-cli containerd.io \
   docker-buildx-plugin docker-compose-plugin
 ```
-**What this does:** installs the daemon (`docker-ce`), the CLI, the container runtime
-(`containerd.io`), BuildKit's `docker buildx`, and `docker compose` **v2 as a plugin** —
-which is why every command in this course is `docker compose` (space) and never
-`docker-compose` (hyphen, the deprecated Python v1).
+**What this does:** one command over two lines. It installs the engine (`docker-ce`), the command
+you type (`docker-ce-cli`), the container runtime (`containerd.io`), the image builder
+(`docker-buildx-plugin`) and `docker compose` **v2 as a plugin** — which is why every command in
+this course is `docker compose` (with a space) and never `docker-compose` (with a hyphen, the
+retired version). This downloads a few hundred megabytes.
+
+**7. Give your user permission to use Docker.**
 
 ```bash
 sudo usermod -aG docker "$USER"
+```
+**What this does:** adds you (`"$USER"` is your login name) to the `docker` group, so you can use
+Docker without typing `sudo` every time. Nothing is printed, and it does not take effect yet.
+
+**8. Make the new group apply right now.**
+
+```bash
 newgrp docker
 ```
-**What this does:** adds you to the `docker` group so you can talk to
-`/var/run/docker.sock` without `sudo`, and `newgrp` starts a subshell with the new group
-applied immediately instead of making you log out and back in.
+**What this does:** starts a fresh shell that has the new group, so you do not have to log out and
+back in. The prompt comes back looking the same — that is expected.
 
 > ⚠️ **Gotcha & security note.** If `docker ps` still says *permission denied*, log out and
 > back in fully. And understand what you just did: **membership of the `docker` group is
@@ -161,27 +281,53 @@ applied immediately instead of making you log out and back in.
 > take over the machine. That is acceptable on a personal lab box; on a shared server it is
 > a privilege grant that belongs in your access-control policy.
 
-✅ **Checkpoint**
+✅ **Checkpoint** — two commands.
+
 ```bash
-docker run --rm hello-world && docker compose version
+docker run --rm hello-world
 ```
-**What this does:** `--rm` deletes the container as soon as it exits so it does not
-accumulate. Seeing "Hello from Docker!" proves the daemon runs, the socket is reachable as
-your user, and outbound access to Docker Hub works. Compose should report **v2.x**.
+**What this does:** downloads a tiny test image and runs it; `--rm` deletes the container the
+moment it finishes, so nothing is left behind. Seeing **"Hello from Docker!"** proves three
+things at once: the Docker service is running, your user may talk to it, and the machine can
+reach Docker Hub.
+
+```bash
+docker compose version
+```
+**What this does:** prints the Compose version. It must start with **v2**.
 
 ---
 
 ## Step 3 — Kubernetes tooling: kubectl, k3d, Helm
 
+**1. Download kubectl, the command that talks to Kubernetes.**
+
 ```bash
 curl -LO "https://dl.k8s.io/release/$(curl -Ls https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+```
+**What this does:** the `curl` inside the brackets asks Kubernetes which version is current (for
+example `v1.31.1`), and that answer is dropped into the download address. `-O` saves the file
+under its own name, `-L` follows redirects. You get a progress bar and a file called `kubectl` in
+the current folder.
+
+**2. Install it.**
+
+```bash
 sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+```
+**What this does:** copies the file into `/usr/local/bin` (where programs everyone can run live)
+while setting its owner, group and permissions in one step — safer than copying and then changing
+them. Nothing is printed.
+
+**3. Delete the downloaded copy.**
+
+```bash
 rm kubectl
 ```
-**What this does:** the inner `curl` fetches the current stable version string (e.g.
-`v1.31.1`) and substitutes it into the download URL, so you always get the current release.
-`install` copies the binary into place while setting owner, group and mode in one atomic
-step — safer than `cp` followed by `chmod`.
+**What this does:** `rm` removes the file you downloaded; the installed copy stays. There is no
+recycle bin, so only ever `rm` something you meant to.
+
+**4. Install k3d.**
 
 ```bash
 curl -s https://raw.githubusercontent.com/k3d-io/k3d/main/install.sh | bash
@@ -195,41 +341,88 @@ one laptop in about 30 seconds.
 > **read**, checksum, and then execute. Say this out loud in class — it is a live example of
 > the supply-chain risk you will formalise in Module 7.
 
+**5. Install Helm.**
+
 ```bash
 curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
 ```
-**What this does:** installs **Helm**, the Kubernetes package manager. Day 6 uses it to
-install the Prometheus + Grafana stack in one command instead of forty manifests.
+**What this does:** downloads Helm's install script and runs it (`| bash`). **Helm** is the
+package manager for Kubernetes: day 6 uses it to install Prometheus and Grafana with one command
+instead of forty configuration files.
 
-✅ **Checkpoint**
+✅ **Checkpoint** — three commands, each naming the tool you just installed.
+
 ```bash
-kubectl version --client && k3d version && helm version --short
+kubectl version --client
 ```
+**What this does:** prints kubectl's own version (`--client` means "do not try to contact a
+cluster" — you have not built one yet).
+
+```bash
+k3d version
+```
+**What this does:** prints the k3d and k3s versions.
+
+```bash
+helm version --short
+```
+**What this does:** prints Helm's version on one line. Expect something starting `v3`.
 
 ---
 
 ## Step 4 — Infrastructure as Code: Terraform and Ansible
 
+This is the same four-move pattern as Docker: **key → repository → refresh → install**.
+
+**1. Download HashiCorp's signing key.**
+
 ```bash
 wget -O- https://apt.releases.hashicorp.com/gpg \
   | sudo gpg --dearmor -o /usr/share/keyrings/hashicorp-archive-keyring.gpg
+```
+**What this does:** one command over two lines. `wget -O-` downloads and prints the key, the `|`
+hands it to `gpg`, which converts and saves it. Nothing else is printed.
+
+**2. Add HashiCorp's repository.**
+
+```bash
 echo "deb [signed-by=/usr/share/keyrings/hashicorp-archive-keyring.gpg] \
 https://apt.releases.hashicorp.com $(lsb_release -cs) main" \
   | sudo tee /etc/apt/sources.list.d/hashicorp.list
-sudo apt-get update && sudo apt-get install -y terraform
 ```
-**What this does:** the same signed-repository pattern as Docker, for HashiCorp's apt repo.
+**What this does:** one command over three lines. It writes the repository line, tied to the key
+from the previous command. `$(lsb_release -cs)` fills in your Ubuntu codename (`noble`). `tee`
+prints the line as well as writing it, so you can check it.
+
+**3. Refresh the catalogue.**
+
+```bash
+sudo apt-get update
+```
+**What this does:** apt now knows about HashiCorp's packages.
+
+**4. Install Terraform.**
+
+```bash
+sudo apt-get install -y terraform
+```
+**What this does:** installs Terraform, the tool Lab 13 uses to create infrastructure from code.
 
 > **Licence note.** Terraform is BUSL-licensed; it is free for this course and for internal
 > enterprise use. If your organisation's policy prefers the MPL-licensed fork, install
 > **OpenTofu** instead — every command in Lab 13 works with `tofu` in place of `terraform`:
 > `curl -fsSL https://get.opentofu.org/install-opentofu.sh -o /tmp/t.sh && sudo bash /tmp/t.sh --install-method deb`
 
+**5. Install Ansible.**
+
 ```bash
 sudo apt-get install -y ansible ansible-lint
 ```
-**What this does:** installs Ansible and its linter. On Ubuntu 24.04 this gives you
-`ansible-core` plus the bundled community collections, which is everything Lab 14 needs.
+**What this does:** installs Ansible and its linter (a tool that checks your Ansible files for
+mistakes). On Ubuntu 24.04 this gives you `ansible-core` plus the bundled community collections,
+which is everything Lab 14 needs.
+
+**6. Install the Python library Ansible needs for Docker.**
 
 ```bash
 pip3 install --user --break-system-packages docker
@@ -239,79 +432,154 @@ pip3 install --user --break-system-packages docker
 because PEP 668 marks the system Python as externally managed; `--user` keeps the install
 inside `~/.local` so it cannot damage system packages.
 
-✅ **Checkpoint**
+✅ **Checkpoint** — two commands.
+
 ```bash
-terraform version && ansible --version | head -1
+terraform version
 ```
+**What this does:** prints Terraform's version. Expect **1.x**.
+
+```bash
+ansible --version | head -1
+```
+**What this does:** Ansible prints a dozen lines; `| head -1` keeps only the first, which carries
+the version.
 
 ---
 
 ## Step 5 — Security tooling
 
+**1. Install Trivy.**
+
 ```bash
 curl -sfL https://raw.githubusercontent.com/aquasecurity/trivy/main/contrib/install.sh \
   | sudo sh -s -- -b /usr/local/bin
 ```
-**What this does:** installs **Trivy**, which scans container images, filesystems, git repos
-and IaC files for vulnerabilities, misconfigurations and secrets. `-b /usr/local/bin` sets
-the install directory.
+**What this does:** one command over two lines. It downloads Trivy's install script and runs it as
+administrator, telling it to install into `/usr/local/bin` (`-b`). **Trivy** scans container
+images, folders, git repositories and infrastructure code for known vulnerabilities,
+misconfigurations and leaked secrets.
+
+**2. Find the newest Gitleaks version.**
 
 ```bash
 GL_VER=$(curl -s https://api.github.com/repos/gitleaks/gitleaks/releases/latest | jq -r .tag_name | tr -d v)
+```
+**What this does:** asks GitHub for the latest release, `jq -r .tag_name` picks the version out of
+the JSON answer, `tr -d v` deletes the leading "v", and `GL_VER=` stores the result under that
+name for the next command. Nothing is printed.
+
+**3. Download and install Gitleaks.**
+
+```bash
 curl -sSL "https://github.com/gitleaks/gitleaks/releases/download/v${GL_VER}/gitleaks_${GL_VER}_linux_x64.tar.gz" \
   | sudo tar -xz -C /usr/local/bin gitleaks
 ```
-**What this does:** asks the GitHub API for the latest release tag, strips the leading `v`
-with `tr -d v`, downloads that release's tarball, and pipes it straight into `tar` which
-extracts **only** the `gitleaks` binary into `/usr/local/bin` — no temporary file.
-**Gitleaks** finds secrets in code and in git history.
+**What this does:** one command over two lines. `${GL_VER}` is replaced by the version you just
+stored; the download is piped straight into `tar`, which unpacks **only** the `gitleaks` program
+into `/usr/local/bin` — no leftover file. **Gitleaks** finds secrets in code and in git history.
+
+**4. Install Syft.**
 
 ```bash
 curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh \
   | sudo sh -s -- -b /usr/local/bin
 ```
-**What this does:** installs **Syft**, which generates an SBOM (Software Bill of Materials)
-from an image or directory. Used in Lab 17.
+**What this does:** the same install pattern as Trivy. **Syft** lists everything inside an image
+or folder as an SBOM (Software Bill of Materials). Lab 17 uses it.
 
-✅ **Checkpoint**
+✅ **Checkpoint** — three commands.
+
 ```bash
-trivy --version && gitleaks version && syft version | head -2
+trivy --version
 ```
+**What this does:** prints Trivy's version and the age of its vulnerability database.
+
+```bash
+gitleaks version
+```
+**What this does:** prints one version number.
+
+```bash
+syft version | head -2
+```
+**What this does:** prints Syft's details; `| head -2` keeps the first two lines.
 
 ---
 
 ## Step 6 — Configure git
 
+Five settings, one command each. `--global` means "for every repository on this machine". None of
+them prints anything.
+
+**1. Your name.**
+
 ```bash
 git config --global user.name  "Your Name"
+```
+**What this does:** stamps this name into **every commit you make**. Replace `Your Name` with your
+own, keeping the quotes.
+
+**2. Your email address.**
+
+```bash
 git config --global user.email "you@example.com"
+```
+**What this does:** the address GitHub uses to attribute commits to you. Use the one attached to
+your GitHub account, or your commits will not link to your profile. (Step 8.1 replaces this with a
+private GitHub address.)
+
+**3. The name of the first branch in a new repository.**
+
+```bash
 git config --global init.defaultBranch main
+```
+**What this does:** new repositories start on `main` instead of the older `master`.
+
+**4. What `git pull` should do.**
+
+```bash
 git config --global pull.rebase false
+```
+**What this does:** makes `git pull` join histories with a merge — explicit, and the safest
+default. You meet the alternative, rebase, in Lab 03.
+
+**5. Which editor git opens.**
+
+```bash
 git config --global core.editor nano
 ```
-**What this does, line by line:**
-- `user.name` / `user.email` — stamped into **every commit you make** and used by GitHub to
-  attribute commits. Use the email attached to your GitHub account or your commits will not
-  link to your profile.
-- `init.defaultBranch main` — new repositories start on `main` instead of `master`.
-- `pull.rebase false` — `git pull` performs a merge. Explicit, and safest for beginners; you
-  will meet the rebase alternative in Lab 03.
-- `core.editor nano` — the editor git opens for commit messages. Use `vim` if you prefer.
+**What this does:** when git needs a message from you it opens **nano**, which tells you its keys
+along the bottom of the screen (`^O` means `Ctrl`+`O` to save, `^X` to exit). Use `vim` instead if
+you already know it.
 
 ✅ **Checkpoint**
+
 ```bash
 git config --global --list
 ```
+**What this does:** prints all five settings back to you. Check the spelling of your email.
 
 ---
 
 ## Step 7 — Create the course workspace and the verification script
 
+**1. Create the course folder.**
+
 ```bash
-mkdir -p ~/devops-course && cd ~/devops-course
+mkdir -p ~/devops-course
 ```
-**What this does:** creates the single directory that every lab in this course works inside.
-`-p` makes it a no-op if it already exists.
+**What this does:** `mkdir` **m**a**k**es a **dir**ectory; `-p` means "do nothing if it already
+exists". This one folder holds every lab's work for the whole week.
+
+**2. Go into it.**
+
+```bash
+cd ~/devops-course
+```
+**What this does:** makes it your current folder, so the file you write next lands there.
+
+**3. Write the verification script.**
 
 ```bash
 cat > toolcheck.sh <<'EOF'
@@ -357,18 +625,33 @@ echo
 [ "$fail" -eq 0 ] && echo "ALL CHECKS PASSED — you are ready." \
                   || { echo "SOME CHECKS FAILED — fix before continuing."; exit 1; }
 EOF
+```
+**What this does:** this whole box is **one command** — copy every line of it, including the last
+`EOF`, and press `Enter` once. `cat > toolcheck.sh <<'EOF'` means "write everything that follows,
+up to the line that says `EOF`, into the file `toolcheck.sh`". Nothing is printed. Inside the
+script:
+- `<<'EOF'` in **quotes** stops the shell replacing `$1`, `$@` and the colour codes as it writes,
+  so the script is stored exactly as you see it.
+- `set -u` makes the script stop if it uses a name that was never set.
+- `if out=$("$@" 2>&1)` tests the **tool's own** success. (Piping it through `head` first would
+  test `head` instead — which always succeeds, so a missing tool would get a green tick.)
+  `${out%%$'\n'*}` keeps only the first line of what the tool printed.
+
+**4. Make the script runnable.**
+
+```bash
 chmod +x toolcheck.sh
+```
+**What this does:** `chmod +x` marks the file as a program you may run. Without it, Linux refuses
+with *Permission denied*. Nothing is printed.
+
+**5. Run it.**
+
+```bash
 ./toolcheck.sh
 ```
-**What this does:** writes a verification script and runs it.
-- `<<'EOF'` — the **quoted** heredoc delimiter is important: it stops the shell expanding
-  `$1`, `$@` and the escape sequences while writing the file, so the script is stored
-  literally.
-- `set -u` makes the script fail on an undefined variable.
-- `if out=$("$@" 2>&1)` tests the **tool's own** exit code. (Piping it through `head` first would
-  test `head`'s exit code instead — which is always success, so a missing tool would get a green
-  tick.) `${out%%$'\n'*}` keeps only the first line of the output.
-- `chmod +x` makes it executable; `./toolcheck.sh` runs it from the current directory.
+**What this does:** runs the script. `./` means "the one in this folder" — Linux does not look in
+the current folder unless you say so. You get one line per tool.
 
 ✅ **Final checkpoint:** the script must print **ALL CHECKS PASSED**.
 
@@ -402,14 +685,23 @@ checks — and the one thing a trainer cannot do for you in the room.
    private**. GitHub shows you a private address such as
    `12345678+your-username@users.noreply.github.com`. Copy it, and use it for your commits:
 
+**a. Tell git to use that address.**
+
 ```bash
 git config --global user.email "12345678+your-username@users.noreply.github.com"
+```
+**What this does:** replaces the email you set in Step 6 with GitHub's private "noreply" address.
+Nothing is printed. **Paste your own address** from the Emails page — the number is different for
+everyone.
+
+**b. Check it took.**
+
+```bash
 git config --global user.email
 ```
-**What this does:** replaces the email you set in Step 6 with GitHub's private "noreply" address,
-then prints it so you can check it. Every commit you push is public on a public repository; this
-way your commits still link to your GitHub profile, but your real address is not published.
-(Paste **your** address from the Emails page — the number is different for everyone.)
+**What this does:** asking for a setting without giving it a value prints the current one. Every
+commit you push is public on a public repository; this way your commits still link to your GitHub
+profile, but your real address is not published.
 
 Back on the Emails page, also tick **Block command line pushes that expose my email**. From now
 on GitHub refuses a push containing a commit with your private address, with the error `GH007`,
@@ -427,29 +719,48 @@ to copy by hand.
 - `--scopes workflow` adds permission to push changes to `.github/workflows/`. Without it, Lab 04's
   push fails with `refusing to allow an OAuth App to create or update workflow`.
 
+**a. Check you are signed in.**
+
 ```bash
 gh auth status
+```
+**What this does:** shows `✓ Logged in to github.com account <your-username>` and the token's
+scopes, which must include `'workflow'`.
+
+**b. Check git will use that sign-in.**
+
+```bash
 git config --global --get-regexp '^credential'
 ```
-**What this does:** `gh auth status` shows `✓ Logged in to github.com account <your-username>` and
-the token's scopes, which must include `'workflow'`. The second command shows that git now asks
-`gh auth git-credential` for GitHub passwords.
+**What this does:** prints every setting whose name starts with `credential`. You should see git
+asking `gh auth git-credential` for GitHub passwords — which is why `git push` will not prompt you.
 
 > **Already signed in without `workflow`?** Run `gh auth refresh -s workflow`.
 > **Prefer a token?** Lab 03 Step 1.2 explains a fine-grained personal access token instead.
 
 ### Step 8.2 — An SSH key
 
+**a. Create the key pair (only if you have none).**
+
 ```bash
 [ -f ~/.ssh/id_ed25519 ] || ssh-keygen -t ed25519 -C "$(git config --global user.email)" -f ~/.ssh/id_ed25519
-cat ~/.ssh/id_ed25519.pub
 ```
-**What this does:** creates an SSH key pair **only if you do not already have one**, labelled with
-your git email, then prints the **public** half.
-- `ssh-keygen` asks for a **passphrase**. Use one: it protects the key if your laptop is stolen, and
-  `ssh-agent` remembers it for the session so you do not type it on every push.
+**What this does:** `[ -f <file> ]` asks "does this file exist?" and `||` means "if not, do the
+next thing" — so an existing key is never overwritten. `ssh-keygen` then makes a new pair, labelled
+with your git email.
+- It asks for a **passphrase**. Use one: it protects the key if your laptop is stolen, and
+  `ssh-agent` remembers it for the session so you do not type it on every push. **Nothing appears
+  as you type** — that is normal.
 - `~/.ssh/id_ed25519` is the **private** key — it never leaves this machine and you never paste it
   anywhere. `~/.ssh/id_ed25519.pub` is the **public** key — safe to give to GitHub and GitLab.
+
+**b. Print the public half.**
+
+```bash
+cat ~/.ssh/id_ed25519.pub
+```
+**What this does:** `cat` prints a file. You get one line starting `ssh-ed25519` — this is what you
+paste into GitHub and GitLab. Copy it with `Ctrl` + `Shift` + `C`.
 
 **GitHub (optional — `gh` already handles HTTPS).** To use SSH as well: **Settings** → **SSH and GPG
 keys** → **New SSH key** → paste the `.pub` line → **Add SSH key**. Then:
@@ -475,29 +786,90 @@ sign up, verify, turn on two-factor authentication, add the SSH key from Step 8.
 
 Skip this if the course installer ran: it installs act for you.
 
+Eight commands, one at a time. They download a pinned release, **check it is genuine**, and only
+then install it — the responsible version of the `curl | bash` pattern from Step 3.
+
+**a. Choose the version.**
+
 ```bash
 ACT_VERSION=0.2.89
+```
+**What this does:** remembers the version number under that name for this terminal window. Nothing
+is printed.
+
+**b. Work out which build your machine needs.**
+
+```bash
 ACT_ARCH=$(uname -m | sed 's/aarch64/arm64/')
+```
+**What this does:** `uname -m` prints your processor type; `sed` rewrites `aarch64` as `arm64`,
+which is what act calls it. The answer is stored under the name `ACT_ARCH`.
+
+**c. Move to the scratch folder.**
+
+```bash
 cd /tmp
+```
+**What this does:** `/tmp` is emptied when the machine restarts — the right place for a download.
+
+**d. Download the release.**
+
+```bash
 curl -fsSLO "https://github.com/nektos/act/releases/download/v${ACT_VERSION}/act_Linux_${ACT_ARCH}.tar.gz"
+```
+**What this does:** `curl` fetches a file from the internet; `-O` saves it under its own name and
+`-fsL` keep it quiet and follow redirects.
+
+**e. Download the project's checksum list.**
+
+```bash
 curl -fsSLO "https://github.com/nektos/act/releases/download/v${ACT_VERSION}/checksums.txt"
+```
+**What this does:** fetches the fingerprints the act project published for this release.
+
+**f. Check the download is genuine.**
+
+```bash
 grep " act_Linux_${ACT_ARCH}.tar.gz\$" checksums.txt | sha256sum -c -
+```
+**What this does:** `grep` picks out the line about your file, and `sha256sum -c` re-calculates the
+fingerprint of what you downloaded and compares them. You must see
+`act_Linux_x86_64.tar.gz: OK` (or `arm64`). **If it says FAILED, stop and do not install it.**
+
+**g. Install it.**
+
+```bash
 sudo tar -xzf "act_Linux_${ACT_ARCH}.tar.gz" -C /usr/local/bin act
+```
+**What this does:** unpacks just the `act` program into `/usr/local/bin`, where programs everyone
+can run live — which is why it needs `sudo` and your password.
+
+**h. Check it runs.**
+
+```bash
 act --version
+```
+**What this does:** prints `act version 0.2.89`.
+
+**i. Go back to your course folder.**
+
+```bash
 cd ~/devops-course
 ```
-**What this does:** downloads a pinned act release **and the project's checksum list**, and checks
-the download against it — you must see `act_Linux_x86_64.tar.gz: OK` (or `arm64`) — before
-extracting the single `act` binary into `/usr/local/bin`. Download, **verify**, then install: the
-responsible version of the `curl | bash` pattern from Step 3. Lab 04A explains how to use it.
+**What this does:** leaves the scratch folder. Lab 04A explains how to use act.
 
-✅ **Checkpoint**
+✅ **Checkpoint** — two commands.
+
 ```bash
 ~/devops-course/toolcheck.sh
+```
+**What this does:** re-runs the tool check from Step 7. Every line should carry a green ✔, with
+`act` either ticked or marked optional.
+
+```bash
 gh auth status
 ```
-`toolcheck.sh` passes (with `act` either ticked or marked optional), and `gh` is logged in with the
-`workflow` scope.
+**What this does:** confirms `gh` is logged in and its scopes include `'workflow'`.
 
 ---
 

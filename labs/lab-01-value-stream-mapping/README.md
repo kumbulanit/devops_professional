@@ -28,6 +28,26 @@ justified by what you find here.
 
 ---
 
+## Before you start — how to run the commands
+
+**No Linux experience needed.** Every instruction is **one command in one grey box**, numbered in
+the order you run it.
+
+- **Open a terminal** with `Ctrl` + `Alt` + `T`. It shows a line ending in `$` — the prompt.
+- **Run a command:** click into the terminal, paste one box with **`Ctrl` + `Shift` + `V`**, press
+  `Enter`, and wait for the `$` prompt to come back.
+- **Most boxes print nothing.** In Linux, silence means it worked.
+- **A box that starts `cat > … <<'EOF'` and ends with `EOF` is one command** — copy all of it,
+  including the last `EOF` line, and press `Enter` once. It writes a file.
+- **This lab opens the nano editor** several times. Type your text, save with `Ctrl` + `O` then
+  `Enter`, and leave with `Ctrl` + `X`.
+- Symbols: `~` is your home folder · `cd` moves into a folder · `>` writes a file · `>>` adds to
+  the end of a file.
+
+Lab 00's *Before you start* section has the longer version if you want it.
+
+---
+
 ## Background — the four numbers
 
 For every step in the stream you record:
@@ -50,12 +70,22 @@ And the two headline figures:
 
 ## Step 1 — Create the workspace
 
+**1. Create the project folder and a `docs` folder inside it.**
+
 ```bash
-mkdir -p ~/devops-course/paytrack-api/docs && cd ~/devops-course/paytrack-api
+mkdir -p ~/devops-course/paytrack-api/docs
 ```
-**What this does:** creates the directory that becomes your project repository in Lab 02, with
-a `docs/` subdirectory. Working here now means your value stream map is version-controlled
-from the first commit — "everything as code" starting with your own analysis.
+**What this does:** `mkdir` **m**a**k**es a **dir**ectory (folder); `-p` creates the parents too,
+and says nothing if they already exist. This folder becomes your project repository in Lab 02.
+
+**2. Move into the project folder.**
+
+```bash
+cd ~/devops-course/paytrack-api
+```
+**What this does:** `cd` (**c**hange **d**irectory) makes it your current folder, so every file
+you create below lands in the right place. Working here means your value stream map is
+version-controlled from the first commit — "everything as code", starting with your own analysis.
 
 ---
 
@@ -73,7 +103,7 @@ fix; not the six-month programme. A typical one — "add a field to a form", "fi
 > package release. Those have genuinely different economics and will distort your first map.
 > Map one of those *second*, once you know what the shape looks like.
 
-Write it down:
+Write it down. **One command — copy the whole box, including the final `EOF` line:**
 
 ```bash
 cat > docs/value-stream.md <<'EOF'
@@ -87,8 +117,9 @@ cat > docs/value-stream.md <<'EOF'
 <Why is it representative? What made it typical?>
 EOF
 ```
-**What this does:** starts the document with the scope stated. `<<'EOF'` writes the block
-literally; you will edit the placeholders in the next step.
+**What this does:** `cat > <file> <<'EOF'` means "write everything that follows, up to the line
+`EOF`, into this file". Nothing is printed. The quotes around `'EOF'` keep the text exactly as
+written — you fill in the `<placeholders>` in the next step.
 
 ---
 
@@ -121,7 +152,9 @@ Typical steps to consider — delete what does not apply, add what does:
 > Tuesday" means a change ready on Wednesday waits **six days** before it is even discussed.
 > That is wait time, and it is invisible unless you write it down.
 
-Append your table:
+Append your table.
+
+**1. Add the empty table to the file.**
 
 ```bash
 cat >> docs/value-stream.md <<'EOF'
@@ -143,11 +176,18 @@ cat >> docs/value-stream.md <<'EOF'
 |11 | Deploy to production  |  |  |  |  |  |
 |12 | Verified in production|  |  |  |  |  |
 EOF
+```
+**What this does:** note the **`>>`** this time: it **adds to the end** of the file, where a single
+`>` would have replaced everything in it. An important habit. Nothing is printed.
+
+**2. Fill in your numbers.**
+
+```bash
 nano docs/value-stream.md
 ```
-**What this does:** `>>` **appends** to the file rather than `>` which would overwrite it —
-an important habit. Then `nano` opens it so you can fill in the numbers. Save with
-`Ctrl+O`, `Enter`; exit with `Ctrl+X`.
+**What this does:** opens the file in **nano**, a simple editor that runs inside the terminal. Use
+the arrow keys to move (the mouse does nothing), type your numbers into the table, then save with
+`Ctrl` + `O` and `Enter`, and leave with `Ctrl` + `X`.
 
 > ⚠️ **The most common mistake:** recording only PT and leaving WT blank or small. If your
 > WT column looks small, you are measuring the process as documented, not as experienced.
@@ -158,7 +198,7 @@ an important habit. Then `nano` opens it so you can fill in the numbers. Save wi
 
 ## Step 4 — Calculate
 
-Fill your numbers into this script:
+**1. Write the calculator.** One command — copy the whole box, down to the final `EOF`:
 
 ```bash
 cat > docs/vsm-calc.py <<'EOF'
@@ -213,11 +253,19 @@ print()
 print("  Little's Law: Lead Time = WIP / Throughput")
 print("  -> halving WIP halves lead time at constant throughput.")
 EOF
+```
+**What this does:** writes a small Python program into `docs/vsm-calc.py`. Nothing is printed yet.
+The `STEPS` list near the top holds example numbers from real bank delivery teams.
+
+**2. Run it.**
+
+```bash
 python3 docs/vsm-calc.py
 ```
-**What this does:** runs the arithmetic so nobody has to do it by hand, and prints the three
-figures that matter: flow efficiency, rolled %C/A, and the largest queue. Replace the
-example `STEPS` with your own numbers and run it again.
+**What this does:** `python3 <file>` runs that program. It does the arithmetic nobody wants to do
+by hand and prints the three figures that matter: flow efficiency, rolled %C/A, and the largest
+queue. **Now edit `STEPS` with your own numbers** (`nano docs/vsm-calc.py`) and run this command
+again.
 
 ✅ **Checkpoint:** you have a flow efficiency percentage. **Say it out loud to the room.**
 If it is above 40 %, your wait times are almost certainly under-reported — go back to
@@ -226,6 +274,8 @@ step 3.
 ---
 
 ## Step 5 — Identify the constraint and the top three actions
+
+**1. Add the analysis section to your map.**
 
 ```bash
 cat >> docs/value-stream.md <<'EOF'
@@ -258,10 +308,18 @@ cat >> docs/value-stream.md <<'EOF'
 ## Which course day addresses each
 <e.g. "#1 automate the manual regression suite → Day 2, Lab 04">
 EOF
+```
+**What this does:** adds the analysis section to the end of your map. Nothing is printed.
+
+**2. Fill it in.**
+
+```bash
 nano docs/value-stream.md
 ```
-**What this does:** appends the analysis section. The *believed vs actual* pair is the point
-of the exercise — capture the belief before the arithmetic, or the finding loses its force.
+**What this does:** opens the file again. Scroll to the bottom with `Ctrl` + `End`(or hold the down
+arrow), type your findings, save with `Ctrl` + `O` and `Enter`, exit with `Ctrl` + `X`. The
+*believed vs actual* pair is the point of the exercise — capture the belief **before** the
+arithmetic, or the finding loses its force.
 
 > **Rule from the Theory of Constraints:** any improvement made anywhere other than the
 > constraint is an illusion. If your constraint is a 120-hour approval queue, adding more
@@ -270,6 +328,8 @@ of the exercise — capture the belief before the arithmetic, or the finding los
 ---
 
 ## Step 6 — CALMS self-assessment
+
+**1. Create the assessment file.**
 
 ```bash
 cat > docs/calms-assessment.md <<'EOF'
@@ -301,10 +361,16 @@ partly automated) · 4 Managed (automated, measured) · 5 Optimising (self-servi
 **First experiment to run:** ___
 **How we will know it worked (the measure):** ___
 EOF
+```
+**What this does:** writes the maturity assessment template. Nothing is printed.
+
+**2. Score yourself.**
+
+```bash
 nano docs/calms-assessment.md
 ```
-**What this does:** creates the maturity assessment. The lowest-scoring dimension, not the
-most interesting one, is where the next investment belongs.
+**What this does:** opens it for editing (save `Ctrl` + `O`, `Enter`; exit `Ctrl` + `X`). The
+lowest-scoring dimension, not the most interesting one, is where the next investment belongs.
 
 ---
 
@@ -335,11 +401,21 @@ noticing you *cannot* estimate them is itself the finding.
 
 ## ✅ Checkpoint
 
+**1. List what is in the folder.**
+
 ```bash
-ls -la docs/ && head -20 docs/value-stream.md
+ls -la docs/
 ```
-You should have `value-stream.md`, `calms-assessment.md` and `vsm-calc.py`, all with real
-content.
+**What this does:** `ls` **l**i**s**ts files; `-l` gives one per line with size and date, and `-a`
+includes hidden ones. You should see `value-stream.md`, `calms-assessment.md` and `vsm-calc.py`.
+
+**2. Read the top of your map.**
+
+```bash
+head -20 docs/value-stream.md
+```
+**What this does:** `head -20` prints the first twenty lines. Check they contain **your** content,
+not the `<placeholders>`.
 
 ---
 
@@ -376,7 +452,8 @@ and you will revisit them in the Lab 19 capstone debrief.
   3. Solo delegates with no Ops colleague present guess the deploy-side numbers. Pair them
      with someone from a different function.
 - **Have a worked example ready** on the projector — the numbers already in `vsm-calc.py`
-  give 9 % flow efficiency and a CAB constraint. Run it live before they start.
+  give **6.5 % flow efficiency**, an 18.3 % rolled %C/A and a CAB constraint (120 h waiting).
+  Run it live before they start.
 - **Debrief question that lands hardest:** "Of your total lead time, what percentage was
   anyone actually working on this change?" Let the silence sit.
 - If a delegate genuinely has no employer process to map (student, between roles), have

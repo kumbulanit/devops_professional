@@ -1,8 +1,9 @@
-# DevOps Professional — 6 Days × 3 h 30 m
+# DevOps Professional — 6 Days (Day 2: 3 h · Days 1 and 3–6: 3 h 30 m)
 
 A complete, self-contained delivery kit for the **DevOps Professional** course: detailed
 theory notes, diagrams and workflows for all nine modules, plus **20 hands-on labs** that
-chain together into one end-to-end DevOps platform.
+chain together into one end-to-end DevOps platform — and **three optional labs** (03A, 04A,
+04B) that go further on Git, pipeline security and GitLab CI.
 
 Everything runs on **Ubuntu 24.04 LTS on localhost**, or on a **free** hosted tier
 (GitHub Free + GitHub Actions + GitHub Container Registry). No cloud account, no credit
